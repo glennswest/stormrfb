@@ -68,7 +68,7 @@ client big.
 | Handshake | RFB 3.8 version exchange, security type negotiation, `SecurityResult`, `ClientInit`/`ServerInit` |
 | Security | `None` (1), and `VNC Authentication` (2) for a server that insists — DES challenge/response, all 16 bytes of it |
 | Pixel formats | true-colour 32/16-bit, both endiannesses; `SetPixelFormat` to pin one rather than accepting whatever arrives |
-| Encodings | `Raw` (0), `CopyRect` (1), `Hextile` (5), `ZRLE` (16), `TRLE` (15) |
+| Encodings | `Raw` (0), `CopyRect` (1), `Hextile` (5), `ZRLE` (16). The TRLE tile decoder is written as an internal module — ZRLE is defined in terms of it — but encoding 15 is **not advertised**; see §Decisions 4 |
 | Client→server | `SetEncodings`, `FramebufferUpdateRequest` (incremental and full), `KeyEvent`, `PointerEvent`, `ClientCutText` |
 | Server→client | `FramebufferUpdate`, `SetColourMapEntries`, `Bell`, `ServerCutText` |
 
