@@ -19,7 +19,7 @@ function replay() {
       for (let row=0; row<h; row++) fb.set(bytes.subarray(offset+row*w*4,offset+(row+1)*w*4),((y+row)*width+x)*4);
     },
     fillRect(x,y,w,h,color) {
-      for (let row=y; row<y+h; row++) for (let col=x; col<x+w; col++) fb.set([...color.slice(0,3),255],(row*width+col)*4);
+      for (let row=y; row<y+h; row++) for (let col=x; col<x+w; col++) { const i=(row*width+col)*4; fb[i]=color[0]; fb[i+1]=color[1]; fb[i+2]=color[2]; fb[i+3]=255; }
     }
   };
   while (pos<data.length) {

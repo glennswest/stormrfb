@@ -8,6 +8,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 stormrfb = { path = "../crates/stormrfb" }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 [workspace]
 [[bin]]
 name = "decoder"
