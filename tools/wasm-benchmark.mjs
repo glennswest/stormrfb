@@ -5,19 +5,22 @@ import init, { BrowserClient } from '../web/pkg/stormrfb_wasm.js';
 const root=new URL('../',import.meta.url);
 const wasm=await readFile(new URL('web/pkg/stormrfb_wasm_bg.wasm',root));
 const { memory }=await init({module_or_path:wasm});
-const data=await readFile(new URL('fixtures/qemu-zrle.rfb',root));
+const fixture=process.argv[2] || 'qemu-zrle';
+const data=await readFile(new URL(`fixtures/${fixture}.rfb`,root));
+const metadata=JSON.parse(await readFile(new URL(`fixtures/${fixture}.json`,root)));
+const { width,height }=metadata;
 function replay(check=false) {
   const started=performance.now();
   const c=new BrowserClient();
   c.receive(new TextEncoder().encode('RFB 003.008\n')); c.receive(new Uint8Array([1,1])); c.receive(new Uint8Array(4));
-  c.receive(new Uint8Array([2,208,1,144,32,24,0,1,0,255,0,255,0,255,0,8,16,0,0,0,0,0,0,0]));
+  c.receive(new Uint8Array([width>>8,width&255,height>>8,height&255,32,24,0,1,0,255,0,255,0,255,0,8,16,0,0,0,0,0,0,0]));
   const prepared=performance.now();
   c.receive(data);
   const decoded=performance.now();
   if (check) {
     let hash=0xcbf29ce484222325n;
-    for (const b of new Uint8Array(memory.buffer,c.framebuffer_ptr(),720*400*4)) hash=BigInt.asUintN(64,(hash^BigInt(b))*0x100000001b3n);
-    assert.equal(hash.toString(16),'6133f0cfae0b305');
+    for (const b of new Uint8Array(memory.buffer,c.framebuffer_ptr(),width*height*4)) hash=BigInt.asUintN(64,(hash^BigInt(b))*0x100000001b3n);
+    assert.equal(hash.toString(16).padStart(16,'0'),metadata.rgba_fnv1a64);
   }
   c.free();
   return { setup:prepared-started, decode:decoded-prepared, total:performance.now()-started };
@@ -31,4 +34,4 @@ for(let round=0;round<5;round++) {
 }
 const median=key=>rounds.map(r=>r[key]).sort((a,b)=>a-b)[2];
 const wrapper=await readFile(new URL('web/client.js',root)); const glue=await readFile(new URL('web/pkg/stormrfb_wasm.js',root));
-console.log(JSON.stringify({runtime:'WASM in Node '+process.version,median_ms_per_frame:median("total"),setup_ms_per_frame:median("setup"),decode_ms_per_frame:median("decode"),rounds,bytes_per_frame:data.length/2,wasm_bytes:wasm.length,js_bytes:wrapper.length+glue.length,gzip_total:[wasm,wrapper,glue].reduce((n,b)=>n+gzipSync(b).length,0)}));
+console.log(JSON.stringify({runtime:'WASM in Node '+process.version,fixture,median_ms_per_frame:median("total"),setup_ms_per_frame:median("setup"),decode_ms_per_frame:median("decode"),rounds,bytes_per_frame:data.length/2,wasm_bytes:wasm.length,js_bytes:wrapper.length+glue.length,gzip_total:[wasm,wrapper,glue].reduce((n,b)=>n+gzipSync(b).length,0)}));

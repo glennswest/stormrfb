@@ -65,9 +65,10 @@ builds".
 ### Active performance work (2026-09-09)
 
 User requested fixing the measured browser slowdown. Preserve v0.1.0 as the
-baseline. Split setup from decode/ABI costs, repeat same-fixture measurements,
-optimize the measured framebuffer/tile hot path, and rerun checksums, strict
-lint, WASM and Chromium tests before recording the result.
+baseline. Setup/decode split and profiling identified redundant initialization,
+tile allocations and per-pixel framebuffer copies. The optimized QEMU replay
+measured 0.361 ms/frame vs 1.319 before and 0.967 for noVNC. Complete final
+Chromium/fuzz validation and record the performance patch.
 
 ### Active implementation sequence
 

@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **test:** extend WASM measurement to both independent fixtures and verify dirty-row alpha/untouched-region behavior
 - **perf:** reuse bounded ZRLE tile/palette scratch, avoid redundant full-rectangle fills and copy framebuffer rows in bulk; retain alpha normalization and bounds checks
 - **test:** establish repeatable median performance comparisons separating session setup from decode/framebuffer work
 

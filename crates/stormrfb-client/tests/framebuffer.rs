@@ -74,3 +74,42 @@ fn input_translation() {
     assert_eq!(pointer_buttons(2), 4);
     assert_eq!(pointer_buttons(4), 2);
 }
+#[test]
+fn dirty_rows_preserve_surrounding_pixels_and_normalize_alpha() {
+    let mut fb = Framebuffer::new(5, 3, Limits::default()).unwrap();
+    fb.apply(Rectangle::Pixels {
+        rect: fb.rect(),
+        pixels: vec![[9, 8, 7, 255]; 15],
+    })
+    .unwrap();
+    fb.apply(Rectangle::Pixels {
+        rect: Rect {
+            x: 1,
+            y: 1,
+            width: 2,
+            height: 2,
+        },
+        pixels: vec![[1, 2, 3, 0]; 4],
+    })
+    .unwrap();
+    for y in 0..3 {
+        for x in 0..5 {
+            let expected = if y >= 1 && (1..3).contains(&x) {
+                [1, 2, 3, 255]
+            } else {
+                [9, 8, 7, 255]
+            };
+            assert_eq!(&fb.rgba()[(y * 5 + x) * 4..(y * 5 + x + 1) * 4], &expected);
+        }
+    }
+    fb.apply(Rectangle::Pixels {
+        rect: Rect {
+            x: 5,
+            y: 0,
+            width: 0,
+            height: 3,
+        },
+        pixels: vec![],
+    })
+    .unwrap();
+}
