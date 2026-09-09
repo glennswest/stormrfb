@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- **docs:** explain RFB, RGBA and damage in the project deck and remove noVNC deployment-status wording
+
 - **docs:** add an editable project review presentation with implementation challenges, architecture/testing diagrams, elapsed-time and token accounting, measured results and optimizations
 
 ## [v0.1.1] — 2026-09-09

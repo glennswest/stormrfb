@@ -1,7 +1,7 @@
 # Project review presentation
 
-`stormrfb-project-review.pptx` is a 16-slide, private project review of v0.1.1.
-It covers project purpose, architecture, elapsed time, recorded tokens, difficult
+`stormrfb-project-review.pptx` is a 17-slide, private project review of v0.1.1.
+It covers project purpose, RFB/RGBA/damage terminology, architecture, elapsed time, recorded tokens, difficult
 implementation details, testing diagrams, first results, optimization and the
 remaining real-guest integration gates. Charts, tables, diagrams and text are
 editable. The red, black and white design contains no Red Hat logo.

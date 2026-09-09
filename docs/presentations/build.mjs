@@ -25,7 +25,12 @@ const source='Sources: docs/DESIGN.md, docs/VALIDATION.md and docs/PERFORMANCE.m
 {
  const s=slide('The server requirement drives the project','A shared Rust protocol core supports both ends of a VM console.',source);
  text(s,'stormvm needs an RFB server',64,263,750,65,36,red,true);text(s,'Encode a VMM framebuffer and receive guest input.\nThe virtio-gpu and vhost-user integration belongs to stormvm.',64,338,1110,105,29);
- text(s,'stormconsole can reuse the same core',64,480,1100,60,36,ink,true);text(s,'A WASM client is implemented. Deployment waits for real Windows and Linux\nguests through the existing relay. noVNC remains deployed.',64,551,1135,83,26);
+ text(s,'stormconsole can reuse the same core',64,480,1100,60,36,ink,true);text(s,'The WASM client exposes the shared framebuffer core to the browser.\nIt is designed to use the existing stormconsole relay.',64,551,1135,83,26);
+}
+{
+ const s=slide('RFB, RGBA and damage','The protocol moves screen updates. The client turns them into pixels to paint.',source+'Terminology: RFB means Remote Framebuffer. A framebuffer stores the screen pixels. RFB carries rectangle updates from server to client and keyboard/pointer events back. RGBA is red, green, blue and alpha, with 8 bits per channel in the canonical client framebuffer. Damage is a set of changed rectangles that need repainting, not corrupted pixels.');
+ table(s,[['Term','Meaning','Role in stormrfb'],['RFB','Remote Framebuffer, a protocol for remote screen access.','Screen updates to the client. Keyboard and mouse input back.'],['RGBA','Red, green, blue and alpha (opacity) for each pixel.','Four bytes per pixel. Normal screen pixels have alpha 255.'],['Damage','Rectangular regions whose pixels have changed.','Repaint those regions instead of repainting the whole screen.']],[210,475,467],250,350,25);
+ text(s,'Example: a moving window changes parts of the screen. Those areas become damage.',64,618,1152,40,24,red,true);
 }
 {
  const s=slide('Architecture and ownership','The codec consumes bytes and emits events. It owns no sockets or platform types.',source);
@@ -84,8 +89,8 @@ const source='Sources: docs/DESIGN.md, docs/VALIDATION.md and docs/PERFORMANCE.m
  table(s,[['Package bytes','Baseline','Optimized'],['WASM','89,559','88,564'],['JS wrapper and glue','18,234','18,234'],['Uncompressed total','107,793','106,798'],['Individually gzipped total','44,878','44,718']],[560,296,296],245,310,25);text(s,'TigerVNC striped fixture: 0.0187 ms/frame, with independent pixel match.',64,591,1152,48,26,red,true);
 }
 {
- const s=slide('Real-guest integration is the next gate','The private implementation is tested. Production replacement remains pending.',source,true);
- text(s,'Windows installer and Linux guest',64,270,1110,55,35,'#FFFFFF',true);text(s,'Run through the actual stormconsole relay and browser.',64,329,1110,55,28,'#CCCCCC');text(s,'Production performance',64,432,1110,55,35,'#FFFFFF',true);text(s,'Measure paint, network latency, shipped chunk size and moving 1080p content.',64,491,1140,83,28,'#CCCCCC');text(s,'Keep noVNC deployed until those gates pass.',64,598,1152,47,30,'#FF5555',true);
+ const s=slide('Next: real-guest integration','The private implementation is tested. Next steps focus on real guest workloads.',source,true);
+ text(s,'Windows installer and Linux guest',64,270,1110,55,35,'#FFFFFF',true);text(s,'Run through the actual stormconsole relay and browser.',64,329,1110,55,28,'#CCCCCC');text(s,'Production performance',64,432,1110,55,35,'#FFFFFF',true);text(s,'Measure paint, network latency, shipped chunk size and moving 1080p content.',64,491,1140,83,28,'#CCCCCC');
 }
 await fs.mkdir(work+'/.build',{recursive:true});await fs.mkdir(work+'/output',{recursive:true});
 await (await PresentationFile.exportPptx(p)).save(work+'/.build/candidate.pptx');
