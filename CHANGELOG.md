@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.1.1] — 2026-09-09
+
 ### 2026-09-09
 - **docs:** record optimized WASM at 0.361 ms/frame versus 1.319 baseline and 0.967 noVNC on the same QEMU fixture; 25 Rust tests, browser/native validation and 421,801 optimized sanitizer fuzz executions passed
 - **test:** extend WASM measurement to both independent fixtures and verify dirty-row alpha/untouched-region behavior
