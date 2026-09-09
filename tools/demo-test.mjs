@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+import {pathToFileURL} from 'node:url';
+import {demoServer} from './demo-server.mjs';
+const {chromium}=await import(pathToFileURL(process.env.PLAYWRIGHT_ROOT+'/index.mjs'));
+const output=process.env.DEMO_OUTPUT||'/build/cargo/stormrfb-demo';await mkdir(output,{recursive:true});
+const server=demoServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+try{
+ const context=await browser.newContext({viewport:{width:1280,height:900},recordVideo:{dir:output,size:{width:1280,height:900}}});
+ const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e)));
+ await page.goto(`http://127.0.0.1:${server.address().port}/`);
+ await page.waitForFunction(()=>Number(document.getElementById('frames').textContent)>5);
+ await page.locator('#play').click();
+ const read=()=>page.locator('#screen').evaluate(c=>{const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let hash=2166136261;for(const b of d)hash=Math.imul(hash^b,16777619);return {hash,first:[...d.slice(0,4)],opaque:d.filter((_,i)=>i%4===3).every(a=>a===255)};});
+ const before=await read(),frames=await page.locator('#frames').textContent();await page.waitForTimeout(200);
+ assert.equal(await page.locator('#frames').textContent(),frames,'pause must stop updates');
+ await page.locator('#step').click();const after=await read();assert.notEqual(after.hash,before.hash,'a step must change pixels');assert.deepEqual(after.first,before.first,'pixels outside damage stay unchanged');assert(after.opaque,'RGBX spare zero must become opaque alpha');
+ const damage=Number.parseFloat(await page.locator('#area').textContent());assert(damage>0&&damage<30,'moving window must repaint a partial frame');
+ await page.locator('#fragment').check();await page.locator('#step').click();assert((await read()).opaque);
+ await page.locator('#screen').hover({position:{x:100,y:100}});await page.waitForTimeout(100);assert.match(await page.locator('#pixel').textContent(),/A 255/);
+ await page.locator('#highlight').uncheck();assert.equal(await page.locator('#overlay').evaluate(c=>c.getContext('2d').getImageData(0,0,c.width,c.height).data.some(v=>v!==0)),false);
+ await page.locator('#highlight').check();await page.locator('#fragment').uncheck();await page.locator('#play').click();await page.waitForTimeout(5000);
+ await page.screenshot({path:output+'/animation.png'});
+ await page.locator('#qemu').click();await page.waitForFunction(()=>document.getElementById('status').textContent.includes('independent pixel hash matched'));
+ assert.equal(await page.locator('#frames').textContent(),'2');await page.screenshot({path:output+'/qemu.png'});await page.waitForTimeout(3000);
+ await page.locator('#fragment').check();await page.locator('#qemu').click();await page.waitForFunction(()=>document.getElementById('status').textContent.includes('independent pixel hash matched'));
+ await page.locator('#reset').click();await page.waitForFunction(()=>Number(document.getElementById('frames').textContent)>5);assert.equal(await page.locator('#play').textContent(),'Pause');await page.waitForTimeout(2000);
+ assert.deepEqual(errors,[]);assert(!/Demo error/.test(await page.locator('#status').textContent()));
+ await context.close();console.log(JSON.stringify({result:'passed',checks:['real WASM pixels','pause and step','partial damage','opaque alpha','fragmented Raw and persistent ZRLE','pixel inspector','overlay toggle','QEMU independent hash','restart'],video:await page.video().path(),screenshots:output}));
+}finally{await browser.close();await new Promise(r=>server.close(r));}
