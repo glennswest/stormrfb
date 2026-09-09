@@ -2,9 +2,12 @@
 #![forbid(unsafe_code)]
 mod handshake;
 mod pixel;
+mod server_message;
+mod tiles;
 mod wire;
 pub use handshake::*;
 pub use pixel::*;
+pub use server_message::*;
 pub use wire::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

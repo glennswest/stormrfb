@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **feat:** Raw, CopyRect, Hextile, persistent ZRLE, cursor/resize/LastRect and control messages; shared rectangle encoder, tile conformance tests and decoder fuzz target
 - **feat:** private Rust workspace, bounded client messages, true-colour pixel conversion, RFB 3.8 client handshake and VNC DES authentication; fragmentation and known-answer tests
 - **docs:** review protocol invariants, correct RGBX/alpha and deferred viewer scope, record implementation sequence
 - **docs:** `docs/DESIGN.md` — the definition. RFB in Rust, sans-I/O codec,
