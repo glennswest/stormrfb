@@ -62,6 +62,13 @@ builds".
       internal**, not advertised, because ZRLE is zlib-wrapped TRLE and the
       frames cross a real network to the browser regardless
 
+### Active performance work (2026-09-09)
+
+User requested fixing the measured browser slowdown. Preserve v0.1.0 as the
+baseline. Split setup from decode/ABI costs, repeat same-fixture measurements,
+optimize the measured framebuffer/tile hot path, and rerun checksums, strict
+lint, WASM and Chromium tests before recording the result.
+
 ### Active implementation sequence
 
 Completed initial implementation and Linux/WASM/native validation; see

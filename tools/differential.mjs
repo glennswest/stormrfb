@@ -9,6 +9,7 @@ const data = await readFile(new URL(`fixtures/${fixture}.rfb`, root));
 const metadata = JSON.parse(await readFile(new URL(`fixtures/${fixture}.json`, root)));
 const { width, height } = metadata;
 function replay() {
+  const started=performance.now();
   const fb = new Uint8Array(width * height * 4);
   const decoder = new ZRLEDecoder();
   let pos = 0, updates = 0;
@@ -23,6 +24,7 @@ function replay() {
       for (let row=y; row<y+h; row++) for (let col=x; col<x+w; col++) { const i=(row*width+col)*4; fb[i]=color[0]; fb[i+1]=color[1]; fb[i+2]=color[2]; fb[i+3]=255; }
     }
   };
+  const prepared=performance.now();
   while (pos<data.length) {
     assert.equal(data[pos],0); const count=data.readUInt16BE(pos+2); pos+=4;
     for (let i=0; i<count; i++) {
@@ -31,7 +33,7 @@ function replay() {
     }
     updates++;
   }
-  return { fb, updates };
+  return { fb, updates, setup:prepared-started, decode:performance.now()-prepared };
 }
 const { fb, updates } = replay();
 let hash=0xcbf29ce484222325n;
@@ -39,6 +41,11 @@ for (const b of fb) hash=BigInt.asUintN(64,(hash^BigInt(b))*0x100000001b3n);
 assert.equal(hash.toString(16).padStart(16,'0'),metadata.rgba_fnv1a64);
 assert.equal(updates,metadata.updates);
 for (let i=0;i<20;i++) replay();
-const start=performance.now();
-for (let i=0;i<200;i++) replay();
-console.log(JSON.stringify({ oracle:'noVNC',updates,hash:metadata.rgba_fnv1a64,ms_per_frame:(performance.now()-start)/400,bytes_per_frame:data.length/updates,node:process.version }));
+const rounds=[];
+for(let round=0;round<5;round++) {
+  let setup=0,decode=0;
+  for(let i=0;i<200;i++) { const r=replay(); setup+=r.setup; decode+=r.decode; }
+  rounds.push({setup:setup/400,decode:decode/400,total:(setup+decode)/400});
+}
+const median=key=>rounds.map(r=>r[key]).sort((a,b)=>a-b)[2];
+console.log(JSON.stringify({oracle:'noVNC',fixture,updates,hash:metadata.rgba_fnv1a64,median_ms_per_frame:median('total'),setup_ms_per_frame:median('setup'),decode_ms_per_frame:median('decode'),rounds,bytes_per_frame:data.length/updates,node:process.version}));

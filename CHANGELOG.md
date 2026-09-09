@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### 2026-09-09
+- **test:** establish repeatable median performance comparisons separating session setup from decode/framebuffer work
+
 ## [v0.1.0] — 2026-09-09
 
 ### 2026-09-09
