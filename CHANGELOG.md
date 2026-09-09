@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **test:** add disposable QEMU capture tool with independent QMP framebuffer checksum and persistent ZRLE session recording
 - **feat:** private WASM/browser package with canvas dirty-region rendering, input and cursor handling, real-WASM Node tests and optional X11 development harness
 - **fix:** simplify session branches flagged by strict Clippy after 18 passing Linux tests
 - **feat:** framebuffer client, renderer seam, DOM key translation and sans-I/O server sessions; byte-fragmented authenticated end-to-end tests and overlap-copy regression tests
