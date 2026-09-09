@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- **docs:** add an editable project review presentation with implementation challenges, architecture/testing diagrams, elapsed-time and token accounting, measured results and optimizations
+
 ## [v0.1.1] — 2026-09-09
 
 ### 2026-09-09
