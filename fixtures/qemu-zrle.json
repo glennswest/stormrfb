@@ -1,0 +1,14 @@
+{
+  "source": "QEMU emulator version 10.1.5 (qemu-10.1.5-1.fc43)",
+  "captured_utc": "2026-09-09T15:17:41Z",
+  "width": 720,
+  "height": 400,
+  "updates": 2,
+  "encodings": [
+    16,
+    16
+  ],
+  "bytes": 1804,
+  "rgba_fnv1a64": "06133f0cfae0b305",
+  "reference": "QMP screendump of paused disposable firmware-only guest; no disk, network or credentials"
+}
