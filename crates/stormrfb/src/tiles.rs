@@ -49,7 +49,8 @@ pub(crate) fn hextile(
             }
         }
     }
-    let mut out = vec![[0, 0, 0, 255]; w * h];
+    // Every output pixel is assigned by a complete tile before returning.
+    let mut out = vec![[0; 4]; w * h];
     let mut bg = None;
     let mut fg = None;
     for y in (0..h).step_by(16) {
@@ -151,28 +152,30 @@ fn run(r: &mut Reader<'_>, remaining: usize) -> Result<usize> {
 }
 pub(crate) fn zrle(data: &[u8], f: PixelFormat, w: usize, h: usize) -> Result<Vec<[u8; 4]>> {
     let mut r = Reader::new(data);
-    let mut out = vec![[0, 0, 0, 255]; w * h];
+    // Tiles overwrite the entire output; zero allocation avoids a redundant
+    // per-pixel opaque-black fill. Scratch space is reused for every tile.
+    let mut out = vec![[0; 4]; w * h];
+    let mut scratch = [[0; 4]; 64 * 64];
+    let mut palette = [[0; 4]; 127];
     for y in (0..h).step_by(64) {
         for x in (0..w).step_by(64) {
             let tw = 64.min(w - x);
             let th = 64.min(h - y);
             let n = tw * th;
+            let tile = &mut scratch[..n];
             let mode = r.u8()?;
-            let mut tile = Vec::with_capacity(n);
             match mode {
                 0 => {
-                    for _ in 0..n {
-                        tile.push(cpixel(&mut r, f)?);
+                    for pixel in tile.iter_mut() {
+                        *pixel = cpixel(&mut r, f)?;
                     }
                 }
-                1 => {
-                    let c = cpixel(&mut r, f)?;
-                    tile.resize(n, c);
-                }
+                1 => tile.fill(cpixel(&mut r, f)?),
                 2..=16 => {
-                    let palette = (0..mode)
-                        .map(|_| cpixel(&mut r, f))
-                        .collect::<Result<Vec<_>>>()?;
+                    let palette = &mut palette[..usize::from(mode)];
+                    for color in palette.iter_mut() {
+                        *color = cpixel(&mut r, f)?;
+                    }
                     let bits = if mode <= 2 {
                         1
                     } else if mode <= 4 {
@@ -180,49 +183,52 @@ pub(crate) fn zrle(data: &[u8], f: PixelFormat, w: usize, h: usize) -> Result<Ve
                     } else {
                         4
                     };
-                    for _ in 0..th {
+                    for row in 0..th {
                         let mut byte = 0;
                         for col in 0..tw {
                             if col % (8 / bits) == 0 {
                                 byte = r.u8()?;
                             }
                             let idx = usize::from((byte >> (8 - bits)) & ((1 << bits) - 1));
-                            tile.push(
-                                *palette
-                                    .get(idx)
-                                    .ok_or(Error::Invalid("ZRLE palette index"))?,
-                            );
+                            tile[row * tw + col] = *palette
+                                .get(idx)
+                                .ok_or(Error::Invalid("ZRLE palette index"))?;
                             byte <<= bits;
                         }
                     }
                 }
                 128 => {
-                    while tile.len() < n {
-                        let c = cpixel(&mut r, f)?;
-                        let count = run(&mut r, n - tile.len())?;
-                        tile.resize(tile.len() + count, c);
+                    let mut filled = 0;
+                    while filled < n {
+                        let color = cpixel(&mut r, f)?;
+                        let count = run(&mut r, n - filled)?;
+                        tile[filled..filled + count].fill(color);
+                        filled += count;
                     }
                 }
                 130..=255 => {
-                    let palette = (0..(mode & 127))
-                        .map(|_| cpixel(&mut r, f))
-                        .collect::<Result<Vec<_>>>()?;
-                    while tile.len() < n {
+                    let palette = &mut palette[..usize::from(mode & 127)];
+                    for color in palette.iter_mut() {
+                        *color = cpixel(&mut r, f)?;
+                    }
+                    let mut filled = 0;
+                    while filled < n {
                         let index = r.u8()?;
-                        let c = *palette
+                        let color = *palette
                             .get(usize::from(index & 127))
                             .ok_or(Error::Invalid("ZRLE palette index"))?;
                         let count = if index & 128 != 0 {
-                            run(&mut r, n - tile.len())?
+                            run(&mut r, n - filled)?
                         } else {
                             1
                         };
-                        tile.resize(tile.len() + count, c);
+                        tile[filled..filled + count].fill(color);
+                        filled += count;
                     }
                 }
                 _ => return Err(Error::Invalid("reserved ZRLE subencoding")),
             }
-            blit(&mut out, w, x, y, tw, th, &tile);
+            blit(&mut out, w, x, y, tw, th, tile);
         }
     }
     if r.pos != data.len() {

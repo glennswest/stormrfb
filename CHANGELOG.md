@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **perf:** reuse bounded ZRLE tile/palette scratch, avoid redundant full-rectangle fills and copy framebuffer rows in bulk; retain alpha normalization and bounds checks
 - **test:** establish repeatable median performance comparisons separating session setup from decode/framebuffer work
 
 ## [v0.1.0] — 2026-09-09

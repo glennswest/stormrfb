@@ -75,15 +75,20 @@ impl Framebuffer {
                 {
                     return Err(Error::Invalid("framebuffer rectangle"));
                 }
-                for row in 0..usize::from(rect.height) {
-                    for col in 0..usize::from(rect.width) {
+                let row_bytes = usize::from(rect.width) * 4;
+                if row_bytes != 0 {
+                    let source = pixels.as_flattened();
+                    for row in 0..usize::from(rect.height) {
                         let offset = ((usize::from(rect.y) + row) * usize::from(self.width)
-                            + usize::from(rect.x)
-                            + col)
+                            + usize::from(rect.x))
                             * 4;
-                        self.rgba[offset..offset + 4]
-                            .copy_from_slice(&pixels[row * usize::from(rect.width) + col]);
-                        self.rgba[offset + 3] = 255;
+                        let target = &mut self.rgba[offset..offset + row_bytes];
+                        target.copy_from_slice(&source[row * row_bytes..(row + 1) * row_bytes]);
+                        // Public callers may supply non-opaque pixels, even though
+                        // the wire decoder already normalizes RGBX alpha.
+                        for alpha in target.iter_mut().skip(3).step_by(4) {
+                            *alpha = 255;
+                        }
                     }
                 }
                 Ok(Event::Damage(rect))
