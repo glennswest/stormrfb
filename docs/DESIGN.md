@@ -1,8 +1,8 @@
 # stormrfb — the design
 
-**Status: implementation in progress.** This document exists so the work
-can be picked up cold, and so the shape is decided before anyone types
-`cargo new`.
+**Status: initial implementation tested.** See [VALIDATION.md](VALIDATION.md)
+for delivered scope, measured results and remaining downstream integration gates.
+This document preserves the intended architecture and phased exits.
 
 ## The one sentence
 

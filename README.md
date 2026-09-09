@@ -18,9 +18,10 @@ Rust VMM, and one codec underneath that neither owns.
   format is the thing worth avoiding, and the server half is being written
   anyway.
 
-**Status: implementation in progress.** The private, non-publishable Rust
-workspace starts with a bounded sans-I/O RFB 3.8 codec. See `docs/DESIGN.md`
-for scope; no downstream integration has been switched from noVNC.
+**Status: initial implementation tested.** Private Rust codec, framebuffer
+client, server session, canvas WASM binding and native development harness.
+See [validation results](docs/VALIDATION.md) for tests, measurements and
+remaining integration gates. stormconsole continues to use noVNC.
 
 Tests run on the Linux development host using `cargo test --workspace`,
 with `CARGO_TARGET_DIR` on its build volume. Push commits to GitHub and

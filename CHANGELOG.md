@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **docs:** record completed scope, Linux/WASM/browser/native validation, independent fixture results, measured performance and outstanding downstream gates; add repeatable validation command
 - **fix:** accept pre-resize client requests until DesktopSize is delivered
 - **test:** replay TigerVNC pixels, enforce decompression bounds and measure compiled WASM against the same QEMU fixture
 - **test:** record TigerVNC striped-screen fixture and fuzz dependency lock after independent capture

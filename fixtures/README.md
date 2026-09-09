@@ -9,5 +9,6 @@ Run capture on Linux, then commit the resulting fixture and metadata.
 
 Synthetic fixtures in Rust tests cover tile subencodings, cursor masks,
 Hextile state, CopyRect overlap, message fragmentation and hostile lengths.
-TigerVNC/noVNC differential and real installer browser validation remain
-separate requirements; QEMU firmware coverage does not establish them.
+`tools/capture_tigervnc.py` similarly records a disposable striped X11 screen
+with an XGetImage oracle. Both fixtures pass noVNC differential replay.
+Real installer browser validation remains a separate integration requirement.

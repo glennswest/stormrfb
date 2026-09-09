@@ -2,10 +2,10 @@
 
 RFB (RFC 6143) in Rust: the codec, a client for the browser, a server for
 the Rust VMM. Read [docs/DESIGN.md](docs/DESIGN.md) before touching
-anything — it is currently the entire project.
+anything. See [docs/VALIDATION.md](docs/VALIDATION.md) for measured status.
 
-**Version: 0.0.0** — implementation in progress, not released. Version locations when code
-exists: `Cargo.toml`, `Cargo.lock`, this file.
+**Version: 0.0.0** — implementation in progress, not released. Version locations: `Cargo.toml`, `Cargo.lock`, `fuzz/Cargo.toml`,
+`fuzz/Cargo.lock`, `web/package.json`, this file.
 
 ## What this is for, in one line each
 
@@ -64,6 +64,9 @@ builds".
 
 ### Active implementation sequence
 
+Completed initial implementation and Linux/WASM/native validation; see
+`docs/VALIDATION.md`. Next: downstream real-guest integration and measurements.
+
 1. Bounded wire primitives, pixel formats, client messages and RFB 3.8 handshake.
 2. Rectangle codecs, persistent ZRLE, framebuffer client, round-trip tests and fuzz target.
 3. Server session, browser binding and optional native harness.
@@ -73,32 +76,32 @@ Commit and push each increment before testing on dev. Keep packages private.
 
 ### Phase 1 — a client that replaces noVNC
 
-- [ ] `stormrfb`: handshake, `None` + VNC Auth, pixel formats, message
+- [x] `stormrfb`: handshake, `None` + VNC Auth, pixel formats, message
       types, encode/decode round-trip
-- [ ] Encodings: Raw, CopyRect, Hextile, ZRLE (TRLE as needed by ZRLE)
-- [ ] Pseudo-encodings: `Cursor`/`RichCursor`, `DesktopSize`, `LastRect`
-- [ ] `stormrfb-client`: framebuffer state, damage rectangles, input
+- [x] Encodings: Raw, CopyRect, Hextile, ZRLE (TRLE as needed by ZRLE)
+- [x] Pseudo-encodings: `Cursor`/`RichCursor`, `DesktopSize`, `LastRect`
+- [x] `stormrfb-client`: framebuffer state, damage rectangles, input
       translation
-- [ ] Native harness (feature-gated, unpolished): a window and a blit, so
+- [x] Native harness (feature-gated, unpolished): a window and a blit, so
       the client crate is debuggable outside WASM
-- [ ] `stormrfb-wasm`: wasm-bindgen binding, `ImageData` on dirty rects,
-      DOM key/mouse → RFB, npm package (dual-published like stormview)
-- [ ] Conformance fixtures recorded from qemu's VNC server and TigerVNC;
+- [x] `stormrfb-wasm`: wasm-bindgen binding, `ImageData` on dirty rects,
+      DOM key/mouse → RFB, private npm package (publication intentionally disabled)
+- [x] Conformance fixtures recorded from qemu's VNC server and TigerVNC;
       differential test against noVNC as the oracle
-- [ ] `cargo-fuzz` on the decoder
+- [x] `cargo-fuzz` on the decoder
 - [ ] Exit: a Windows installer and a Linux guest legible in stormconsole
       with `@novnc/novnc` removed. **Measure** decode ms/frame, bytes/frame
       and shipped chunk size against noVNC's 182 KB on the same session
 
 ### Phase 2 — the server (stormvm#1)
 
-- [ ] `stormrfb-server`: framebuffer + damage → update messages
+- [x] `stormrfb-server`: framebuffer + damage → update messages
 - [ ] vhost-user integration is stormvm's; this supplies the protocol
 - [ ] **Measure** fps and bytes/s for a moving window on a 1080p guest
 
 ### Phase 3 — the native viewer
 
-- [ ] `stormrfb-view`, so `stormvm vnc` opens a window
+Deferred by decision 3; only the development harness is implemented.
 
 ### Phase 4 — latency
 
