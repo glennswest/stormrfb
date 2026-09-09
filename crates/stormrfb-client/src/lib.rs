@@ -223,7 +223,13 @@ impl Client {
         let mut pos = 0;
         let mut events = vec![];
         loop {
-            if events.len() > self.limits.max_rectangles * 4 + 16 {
+            if events.len()
+                > self
+                    .limits
+                    .max_rectangles
+                    .saturating_mul(4)
+                    .saturating_add(16)
+            {
                 return Err(Error::Limit);
             }
             if let Some(handshake) = &mut self.handshake {

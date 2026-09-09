@@ -18,6 +18,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut window: Option<Window> = None;
     let mut screen = Vec::new();
     let mut input = [0; 65536];
+    let max_frames = std::env::var("STORMRFB_HARNESS_FRAMES")
+        .ok()
+        .and_then(|n| n.parse::<usize>().ok());
+    let mut frames = 0;
     loop {
         match socket.read(&mut input) {
             Ok(0) => break,
@@ -60,6 +64,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .map(|p| (u32::from(p[0]) << 16) | (u32::from(p[1]) << 8) | u32::from(p[2])),
             );
             win.update_with_buffer(&screen, w, h)?;
+            frames += 1;
+            if max_frames.is_some_and(|n| frames >= n) {
+                break;
+            }
             if let Some((x, y)) = win.get_mouse_pos(MouseMode::Clamp) {
                 let buttons = u8::from(win.get_mouse_down(MouseButton::Left))
                     | (u8::from(win.get_mouse_down(MouseButton::Middle)) << 1)

@@ -37,6 +37,9 @@ impl ServerInit {
         b.extend(self.height.to_be_bytes());
         b.extend(self.format.encode()?);
         put_text(&mut b, &self.name, limits)?;
+        if b.len() > limits.max_bytes {
+            return Err(Error::Limit);
+        }
         Ok(b)
     }
     pub fn decode(b: &[u8], limits: Limits) -> Result<(Self, usize)> {
@@ -49,6 +52,9 @@ impl ServerInit {
         }
         let format = PixelFormat::decode(r.take(16)?)?;
         let name = r.text(limits)?;
+        if r.pos > limits.max_bytes {
+            return Err(Error::Limit);
+        }
         Ok((
             Self {
                 width,

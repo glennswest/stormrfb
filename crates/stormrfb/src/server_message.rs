@@ -293,7 +293,13 @@ impl ServerEncoder {
                     return Err(Error::Invalid("pixel count"));
                 }
             }
-            estimate = estimate.checked_add(n * 6 + 1024).ok_or(Error::Limit)?;
+            estimate = estimate
+                .checked_add(
+                    n.checked_mul(6)
+                        .and_then(|v| v.checked_add(1024))
+                        .ok_or(Error::Limit)?,
+                )
+                .ok_or(Error::Limit)?;
         }
         if estimate > self.limits.max_bytes {
             return Err(Error::Limit);

@@ -132,7 +132,13 @@ impl Server {
         let mut pos = 0;
         let mut out = vec![];
         loop {
-            if out.len() > self.limits.max_rectangles * 4 + 16 {
+            if out.len()
+                > self
+                    .limits
+                    .max_rectangles
+                    .saturating_mul(4)
+                    .saturating_add(16)
+            {
                 return Err(Error::Limit);
             }
             let b = &self.buffer[pos..];

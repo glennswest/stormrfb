@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **fix:** preflight incomplete Hextile payloads before framebuffer allocation, check encoder size arithmetic and initialization byte limits
+- **test:** add bounded-frame native harness mode for automated window smoke tests
 - **test:** add isolated TigerVNC striped-screen capture with XGetImage pixel oracle; generalize noVNC fixture replay
 - **test:** expand fuzzing through valid zlib framing into arbitrary tile subencodings; remove per-pixel allocation from the noVNC oracle benchmark shim
 - **fix:** enforce rectangle budget for LastRect sentinel updates

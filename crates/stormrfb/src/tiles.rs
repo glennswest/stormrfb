@@ -24,6 +24,31 @@ pub(crate) fn hextile(
     w: usize,
     h: usize,
 ) -> Result<Vec<[u8; 4]>> {
+    // Check framing before allocating a framebuffer-sized output. A fragmented
+    // Hextile rectangle must not trigger a large allocation on every byte.
+    let mut scan = Reader::new(&r.data[r.pos..]);
+    for y in (0..h).step_by(16) {
+        for x in (0..w).step_by(16) {
+            let flags = scan.u8()?;
+            if flags & !31 != 0 {
+                return Err(Error::Invalid("hextile flags"));
+            }
+            if flags & 1 != 0 {
+                scan.take(16.min(w - x) * 16.min(h - y) * f.bytes())?;
+            } else {
+                if flags & 2 != 0 {
+                    scan.take(f.bytes())?;
+                }
+                if flags & 4 != 0 {
+                    scan.take(f.bytes())?;
+                }
+                if flags & 8 != 0 {
+                    let count = usize::from(scan.u8()?);
+                    scan.take(count * (2 + if flags & 16 != 0 { f.bytes() } else { 0 }))?;
+                }
+            }
+        }
+    }
     let mut out = vec![[0, 0, 0, 255]; w * h];
     let mut bg = None;
     let mut fg = None;
