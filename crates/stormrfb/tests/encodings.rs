@@ -32,7 +32,7 @@ fn encodings_match_raw_across_tile_edges_and_stream_updates() {
         let mut d = ServerDecoder::new(PixelFormat::RGBX, Limits::default()).unwrap();
         for _ in 0..3 {
             let b = e
-                .update(&[rectangle.clone()], PixelFormat::RGBX, encoding)
+                .update(std::slice::from_ref(&rectangle), PixelFormat::RGBX, encoding)
                 .unwrap();
             assert_eq!(
                 decode_all(&mut d, &b),
@@ -57,7 +57,7 @@ fn rectangle_fragmentation() {
             pixels: vec![[5, 6, 7, 255]; 6],
         };
         let b = ServerEncoder::new(Limits::default())
-            .update(&[rectangle.clone()], PixelFormat::RGBX, encoding)
+            .update(std::slice::from_ref(&rectangle), PixelFormat::RGBX, encoding)
             .unwrap();
         let mut d = ServerDecoder::new(PixelFormat::RGBX, Limits::default()).unwrap();
         assert_eq!(d.next(&b).unwrap(), (ServerEvent::UpdateStart, 4));
