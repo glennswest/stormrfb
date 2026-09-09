@@ -51,3 +51,8 @@ Swapping the import is the whole integration.
 
 See `docs/DESIGN.md` for scope, the protocol subset, architecture and
 phasing.
+
+The workspace contains `stormrfb` (wire codec), `stormrfb-client` (RGBA
+framebuffer, damage and input), and `stormrfb-server` (one session per
+connection, authentication and requested damage updates). Applications own
+transport, authorization and fresh VNC-auth challenges. The codec owns no I/O.

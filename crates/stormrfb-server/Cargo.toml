@@ -1,0 +1,9 @@
+[package]
+name = "stormrfb-server"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+[dependencies]
+stormrfb.workspace = true
+[dev-dependencies]
+stormrfb-client = { path = "../stormrfb-client" }
