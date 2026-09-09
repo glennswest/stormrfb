@@ -2,7 +2,10 @@
 
 ## [Unreleased]
 
+## [v0.1.0] — 2026-09-09
+
 ### 2026-09-09
+- **chore:** tag the tested private implementation as v0.1.0; all package and lockfile versions synchronized
 - **docs:** record completed scope, Linux/WASM/browser/native validation, independent fixture results, measured performance and outstanding downstream gates; add repeatable validation command
 - **fix:** accept pre-resize client requests until DesktopSize is delivered
 - **test:** replay TigerVNC pixels, enforce decompression bounds and measure compiled WASM against the same QEMU fixture
