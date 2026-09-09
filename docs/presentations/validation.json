@@ -1,0 +1,14 @@
+{
+  "artifact": "stormrfb-project-review.pptx",
+  "sha256": "3fe7693f32f666f5150716becc964e369737074c8a2d2efe891a81d696c67cf0",
+  "slides": 16,
+  "native_charts": 2,
+  "native_tables": 6,
+  "package_integrity": "pass",
+  "layout": "pass",
+  "layout_warnings": [],
+  "chart_data_and_embedded_workbooks": "pass",
+  "artifact_tool_import": "pass",
+  "visual_review": "All slides rendered and inspected. Diagram direction, text fit and table spacing corrected.",
+  "native_powerpoint_open_verified": false
+}
