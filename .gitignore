@@ -1,0 +1,39 @@
+# Secrets and environment
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# IDE and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+target
+dist/
+pkg/
+build/
+node_modules/
+*.wasm
+
+# Fuzzing
+fuzz/target
+fuzz/corpus
+fuzz/artifacts
+
+# Recorded protocol fixtures are inputs, not artifacts — keep them.
+# Large captures that are not fixtures:
+*.pcap
+
+# Logs and temp
+*.log
+tmp/
+temp/
