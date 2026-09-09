@@ -4,5 +4,5 @@
   "private": true,
   "type": "module",
   "exports": "./client.js",
-  "scripts": { "test": "node --test client.test.js", "build": "wasm-pack build ../crates/stormrfb-wasm --target web --out-dir ../../web/pkg" }
+  "scripts": { "test": "node --test client.test.js", "build": "sh ../tools/build-web.sh" }
 }

@@ -1,7 +1,7 @@
 # Private browser package
 
-Build on the Linux host with `npm run build` (requires wasm-pack and the
-wasm32-unknown-unknown Rust target). Serve this directory through the
+Build on the Linux host with `npm run build` (requires wasm-bindgen-cli matching Cargo.lock and the
+wasm32-unknown-unknown Rust target, with CARGO_TARGET_DIR set). Serve this directory through the
 application's normal same-origin HTTP server; import `connect` from `client.js`.
 
 ```js
