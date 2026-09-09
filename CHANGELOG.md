@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **test:** record TigerVNC striped-screen fixture and fuzz dependency lock after independent capture
 - **fix:** preflight incomplete Hextile payloads before framebuffer allocation, check encoder size arithmetic and initialization byte limits
 - **test:** add bounded-frame native harness mode for automated window smoke tests
 - **test:** add isolated TigerVNC striped-screen capture with XGetImage pixel oracle; generalize noVNC fixture replay
