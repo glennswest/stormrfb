@@ -4,7 +4,7 @@ RFB (RFC 6143) in Rust: the codec, a client for the browser, a server for
 the Rust VMM. Read [docs/DESIGN.md](docs/DESIGN.md) before touching
 anything — it is currently the entire project.
 
-**Version: 0.0.0** — definition only, no code. Version locations when code
+**Version: 0.0.0** — implementation in progress, not released. Version locations when code
 exists: `Cargo.toml`, `Cargo.lock`, this file.
 
 ## What this is for, in one line each

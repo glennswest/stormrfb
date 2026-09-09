@@ -18,8 +18,13 @@ Rust VMM, and one codec underneath that neither owns.
   format is the thing worth avoiding, and the server half is being written
   anyway.
 
-**Status: definition only.** `docs/DESIGN.md` is the whole project so far.
-No code, no crates, no dependency on this from anything yet.
+**Status: implementation in progress.** The private, non-publishable Rust
+workspace starts with a bounded sans-I/O RFB 3.8 codec. See `docs/DESIGN.md`
+for scope; no downstream integration has been switched from noVNC.
+
+Tests run on the Linux development host using `cargo test --workspace`,
+with `CARGO_TARGET_DIR` on its build volume. Push commits to GitHub and
+pull them on that host before testing.
 
 ## Why not just keep noVNC
 
