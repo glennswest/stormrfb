@@ -205,23 +205,110 @@ browser tab.
 **Phase 4 — the latency work.** `ContinuousUpdates` + `Fence`, and whatever
 the phase-1 measurements said was actually slow.
 
-## Open decisions
+## Decisions
 
-1. **Canvas vs WebGL** for the browser. Start with `putImageData` on dirty
-   rects; it is simple and likely enough at console resolutions. Revisit
-   with a number, not an opinion.
-2. **Public or private repo.** Created private. It is a generic protocol
-   implementation with no infrastructure detail in it, which is the profile
-   of every public repo here (`stormview`, `fastetcd`, `mkfs.ext4.rs`), so
-   public is probably right eventually — and unpublishing is not a thing,
-   which is why it starts closed.
-3. **Whether `stormrfb-view` is worth it**, or whether `stormvm vnc`
-   shelling out to a system viewer against a local port is enough. The
-   native viewer is the smallest of the four crates and the least load-
-   bearing.
-4. **TRLE.** Listed as a must because ZRLE is defined in terms of it, but
-   almost nothing sends bare TRLE. It may end up as an implementation
-   detail of ZRLE rather than a first-class encoding.
+Evidence below was taken from the noVNC 1.7.0 tree vendored in
+stormconsole's `web/node_modules`, 2026-09-09 — the most-deployed RFB
+client there is, which makes it a useful oracle for "did anyone ever need
+this".
+
+### 1. Canvas 2D, not WebGL — with the renderer behind a seam
+
+**Settled: canvas 2D.**
+
+| | Canvas 2D (`putImageData`) | WebGL |
+|---|---|---|
+| Fit to the protocol | RFB *is* a dirty-rectangle protocol; `putImageData(img, x, y)` is that, 1:1 | `texSubImage2D` per rect works, but you are translating |
+| Code | a backbuffer canvas and a blit | context creation, shaders, textures, VAOs, **and context-loss recovery** |
+| Scaling | CSS/transform on the element; the compositor does it, free and filtered | free, on the GPU |
+| Pixel conversion | CPU — but moot, see below | shader-side |
+| Failure modes | few, and visible | black screen: shader? texture format? context lost? decoder? |
+| Fallback needed | no | yes, when WebGL is unavailable |
+
+Two things make the CPU-conversion column moot. The client sends
+`SetPixelFormat` to pin RGBA8888 little-endian, so the *server* converts and
+the decoder never sees 16-bit or colour-mapped pixels. And the `ImageData`
+can be constructed over a view into WASM linear memory, so the decoder
+writes where the browser reads — one copy at worst. (Watch for WASM memory
+growth invalidating the view; rebuild it on `memory.grow`.)
+
+**The evidence**: noVNC is canvas 2D — `core/display.js:43,50` take
+`getContext('2d')` for both the target and an offscreen backbuffer, paint
+with `putImageData` (`:415`), and scale with a `_scale` factor on the
+element rather than a second render path. Fifteen years, every hypervisor
+console on the internet, no WebGL. A VM console is not a video player: the
+workload is a firmware screen, an installer, a text console, and
+occasionally a desktop.
+
+**But keep the seam.** The renderer goes behind a trait so WebGL can be
+added without touching the client. The measurement that would flip it:
+decode-plus-paint milliseconds per frame on a 1080p guest doing a
+full-screen redraw. If *paint* is a meaningful share of that, revisit —
+with the number, not an opinion.
+
+### 2. Private repo
+
+**Settled: private.** It can be published later; it cannot be unpublished.
+
+### 3. No shipped native viewer — but a native harness early
+
+**Settled: split the question in two, because they are two questions.**
+
+The **harness** (phase 1, feature-gated, deliberately unpolished): a window,
+an event loop, a blit. Not for users.
+
+- **For:** WASM is miserable to debug. A native harness gives a real
+  debugger, a real profiler and real backtraces against *the same client
+  crate* — every bug it finds is a bug the browser path has. This is the
+  argument that usually gets underweighted, and it is the strongest one
+  here.
+- **Against:** none worth the words. It is a hundred lines and it is not
+  shipped.
+
+The **shipped viewer** (`stormrfb-view`): deferred, possibly forever.
+
+- **For:** zero dependencies on the operator's machine; one consistent
+  key-handling behaviour, where every system viewer maps Ctrl-Alt-Del,
+  function keys and international layouts differently.
+- **Against:** it is a GUI application, and GUI applications are a long
+  tail — resize, DPI, multi-monitor, clipboard, keyboard layouts, IME,
+  three platforms. "Smallest crate" is true at v1 and false by v3. It
+  duplicates a browser tab that already exists and works. Nothing is
+  blocked on it.
+
+So **`stormvm vnc` opens a local proxy port, prints it, and optionally
+launches `$VNCVIEWER`** — which is what `virtctl vnc` does, what people
+expect, and nearly free. If the harness turns out to be pleasant, promoting
+it later is easy; if it does not, nothing was promised.
+
+### 4. TRLE is an internal module, not an advertised encoding
+
+**Settled: implement the tile decoder, do not advertise encoding 15.**
+
+ZRLE *is* zlib-wrapped TRLE — 64×64 tiles, each with a subencoding byte
+(raw, solid, packed palette, plain RLE, palette RLE). Implementing ZRLE
+means writing the TRLE tile decoder whether you meant to or not; noVNC's
+`core/decoders/zrle.js` has exactly that logic inline and there is no
+`trle.js` beside it. It also has no TRLE entry in `core/encodings.js` at
+all: Raw, CopyRect, RRE, Hextile, Zlib, Tight, ZRLE, TightPNG, JPEG, H.264,
+and no 15.
+
+The tempting argument for advertising it is that the VMM's VNC socket is
+local, so zlib is CPU spent to compress something that never leaves the
+machine. **That argument dies on the actual topology**, which is not one
+hop:
+
+```
+guest → VMM VNC socket (local) → stormvm relay → console relay → browser (network)
+```
+
+The console relay passes frames through untouched — by design, it knows
+nothing about RFB. So whatever the server emits crosses a real network to
+reach a browser, and it must be compressed end to end. Bare TRLE would only
+pay off if something transcoded, and nothing does or should.
+
+Revisit only if a transcoding relay ever exists. Until then this is a
+non-decision, which is the best kind.
 
 ## What this depends on, and what depends on it
 

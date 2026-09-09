@@ -52,9 +52,15 @@ builds".
 
 - [x] `docs/DESIGN.md` — scope, the protocol subset, architecture, phasing
 - [x] Repo created
-- [ ] Settle the four open decisions in DESIGN.md (canvas vs WebGL; public
-      or private; whether the native viewer earns its place; whether TRLE
-      is an encoding or a ZRLE implementation detail)
+- [x] Settle the four open decisions — all four decided 2026-09-09, with
+      the reasoning and the noVNC evidence in DESIGN.md §Decisions:
+      **canvas 2D** behind a renderer seam (noVNC is 2D after fifteen
+      years; a console is not a video player); **private** repo (can be
+      published, cannot be unpublished); **no shipped native viewer** but a
+      feature-gated native harness in phase 1, because WASM is miserable to
+      debug and the harness exercises the same client crate; **TRLE
+      internal**, not advertised, because ZRLE is zlib-wrapped TRLE and the
+      frames cross a real network to the browser regardless
 
 ### Phase 1 — a client that replaces noVNC
 
@@ -64,6 +70,8 @@ builds".
 - [ ] Pseudo-encodings: `Cursor`/`RichCursor`, `DesktopSize`, `LastRect`
 - [ ] `stormrfb-client`: framebuffer state, damage rectangles, input
       translation
+- [ ] Native harness (feature-gated, unpolished): a window and a blit, so
+      the client crate is debuggable outside WASM
 - [ ] `stormrfb-wasm`: wasm-bindgen binding, `ImageData` on dirty rects,
       DOM key/mouse → RFB, npm package (dual-published like stormview)
 - [ ] Conformance fixtures recorded from qemu's VNC server and TigerVNC;
