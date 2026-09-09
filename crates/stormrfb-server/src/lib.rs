@@ -38,6 +38,7 @@ pub struct Server {
     pixels: Vec<[u8; 4]>,
     dirty: Option<Rect>,
     request: Option<(bool, Rect)>,
+    pending_resize: bool,
 }
 impl Server {
     pub fn new(init: ServerInit, security: Security, limits: Limits) -> Result<Self> {
@@ -60,7 +61,29 @@ impl Server {
             pixels: vec![[0, 0, 0, 255]; n],
             dirty,
             request: None,
+            pending_resize: false,
         })
+    }
+    /// Resize a ready session only after DesktopSize was negotiated. The resize
+    /// is sent as the final rectangle of the next requested update.
+    pub fn resize(&mut self, width: u16, height: u16) -> Result<()> {
+        if !matches!(self.state, State::Ready) || !self.encodings.contains(&DESKTOP_SIZE) {
+            return Err(Error::Unsupported(DESKTOP_SIZE));
+        }
+        let n = self.limits.pixels(width, height)?;
+        if n == 0 {
+            return Err(Error::Invalid("empty framebuffer"));
+        }
+        self.pixels = vec![[0, 0, 0, 255]; n];
+        self.init.width = width;
+        self.init.height = height;
+        self.dirty = Some(Rect {
+            width,
+            height,
+            ..Rect::default()
+        });
+        self.pending_resize = true;
+        Ok(())
     }
     pub fn greeting(&self) -> &'static [u8] {
         VERSION
@@ -235,6 +258,19 @@ impl Server {
         let Some((incremental, area)) = self.request else {
             return Ok(None);
         };
+        if self.pending_resize {
+            let bytes = self.encoder.update(
+                &[Rectangle::DesktopSize {
+                    width: self.init.width,
+                    height: self.init.height,
+                }],
+                self.format,
+                RAW,
+            )?;
+            self.pending_resize = false;
+            self.request = None;
+            return Ok(Some(bytes));
+        }
         let rect = if incremental {
             let Some(dirty) = self.dirty else {
                 return Ok(None);

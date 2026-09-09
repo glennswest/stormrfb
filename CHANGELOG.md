@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **fix:** enforce rectangle budget for LastRect sentinel updates
+- **feat:** negotiate server DesktopSize updates with full refresh after resize
+- **test:** add real Chromium canvas validation including WASM memory growth and resize
 - **test:** commit QEMU fixture regression against QMP checksum, noVNC differential runner, native replay benchmark and reproducible WASM build script
 - **test:** add disposable QEMU capture tool with independent QMP framebuffer checksum and persistent ZRLE session recording
 - **feat:** private WASM/browser package with canvas dirty-region rendering, input and cursor handling, real-WASM Node tests and optional X11 development harness

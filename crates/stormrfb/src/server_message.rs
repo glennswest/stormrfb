@@ -42,6 +42,7 @@ pub struct ServerDecoder {
     remaining: Option<u16>,
     inflater: Decompress,
     failed: bool,
+    decoded_rectangles: usize,
 }
 impl ServerDecoder {
     pub fn new(format: PixelFormat, limits: Limits) -> Result<Self> {
@@ -52,6 +53,7 @@ impl ServerDecoder {
             remaining: None,
             inflater: Decompress::new(true),
             failed: false,
+            decoded_rectangles: 0,
         })
     }
     pub fn next(&mut self, b: &[u8]) -> Result<(ServerEvent, usize)> {
@@ -76,6 +78,9 @@ impl ServerDecoder {
             if encoding == LAST_RECT {
                 self.remaining = None;
                 return Ok((ServerEvent::UpdateEnd, r.pos));
+            }
+            if self.decoded_rectangles >= self.limits.max_rectangles {
+                return Err(Error::Limit);
             }
             let pixels = self.limits.pixels(rect.width, rect.height)?;
             let value = match encoding {
@@ -159,6 +164,7 @@ impl ServerDecoder {
             if r.pos > self.limits.max_bytes {
                 return Err(Error::Limit);
             }
+            self.decoded_rectangles += 1;
             self.remaining = Some(n - 1);
             return Ok((ServerEvent::Rectangle(value), r.pos));
         }
@@ -169,6 +175,7 @@ impl ServerDecoder {
                 if usize::from(n) > self.limits.max_rectangles && n != u16::MAX {
                     return Err(Error::Limit);
                 }
+                self.decoded_rectangles = 0;
                 self.remaining = Some(n);
                 ServerEvent::UpdateStart
             }

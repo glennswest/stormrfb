@@ -136,3 +136,27 @@ fn full_request_subregion_and_outside_damage_retained() {
     .unwrap();
     assert!(s.update().unwrap().is_some());
 }
+#[test]
+fn resize_waits_for_request_and_client_requests_new_full_frame() {
+    let mut s = server(Security::None);
+    let mut c = Client::new(None, Limits::default());
+    exchange(&mut c, &mut s, VERSION.to_vec());
+    let b = s.update().unwrap().unwrap();
+    exchange(&mut c, &mut s, b);
+    s.resize(2, 2).unwrap();
+    let b = s.update().unwrap().unwrap();
+    exchange(&mut c, &mut s, b);
+    assert_eq!(c.framebuffer().unwrap().width(), 2);
+    s.damage(
+        Rect {
+            width: 2,
+            height: 2,
+            ..Rect::default()
+        },
+        &[[1, 2, 3, 255]; 4],
+    )
+    .unwrap();
+    let b = s.update().unwrap().unwrap();
+    exchange(&mut c, &mut s, b);
+    assert_eq!(&c.framebuffer().unwrap().rgba()[..4], &[1, 2, 3, 255]);
+}

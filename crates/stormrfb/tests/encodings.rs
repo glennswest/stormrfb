@@ -145,3 +145,18 @@ fn last_rect_ends_unknown_count() {
         ]
     );
 }
+#[test]
+fn unknown_count_still_obeys_rectangle_budget() {
+    let limits = Limits {
+        max_rectangles: 1,
+        ..Limits::default()
+    };
+    let mut d = ServerDecoder::new(PixelFormat::RGBX, limits).unwrap();
+    d.next(&[0, 0, 255, 255]).unwrap();
+    let mut r = vec![0; 8];
+    r.extend(COPY_RECT.to_be_bytes());
+    r.extend([0; 4]);
+    d.next(&r).unwrap();
+    assert_eq!(d.next(&r), Err(Error::Limit));
+    assert!(d.next(&[]).is_err());
+}
