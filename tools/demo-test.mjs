@@ -7,7 +7,7 @@ const output=process.env.DEMO_OUTPUT||'/build/cargo/stormrfb-demo';await mkdir(o
 const server=demoServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 try{
- const context=await browser.newContext({viewport:{width:1280,height:900},recordVideo:{dir:output,size:{width:1280,height:900}}});
+ const context=await browser.newContext({viewport:{width:1280,height:1080},recordVideo:{dir:output,size:{width:1280,height:1080}}});
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e)));
  await page.goto(`http://127.0.0.1:${server.address().port}/`);
  await page.waitForFunction(()=>Number(document.getElementById('frames').textContent)>5);

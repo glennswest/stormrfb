@@ -16,6 +16,9 @@ benchmark. No production client APIs are changed.
 `PLAYWRIGHT_ROOT=/path/to/playwright node tools/demo-test.mjs` checks the demo in
 Chromium and records a WebM plus screenshots under `/build/cargo/stormrfb-demo`
 (override with `DEMO_OUTPUT`). Use the existing Playwright browser-cache setting.
+On the designated host, use `PLAYWRIGHT_BROWSERS_PATH=/build/cache/stormrfb-browsers`,
+`PLAYWRIGHT_ROOT=/build/tools/stormrfb-js/node_modules/playwright` and a writable
+build-volume `TMPDIR` such as `/build/cargo/stormrfb-demo/tmp` (create it first).
 
 ## Browser integration
 
