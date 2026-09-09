@@ -1,6 +1,6 @@
 # stormrfb — the design
 
-**Status: definition. Nothing is built.** This document exists so the work
+**Status: implementation in progress.** This document exists so the work
 can be picked up cold, and so the shape is decided before anyone types
 `cargo new`.
 
@@ -199,8 +199,8 @@ recorded session, and the size of the shipped chunk against noVNC's 182 KB.
 from virtio-gpu, produces updates. **Measured:** frames per second and
 bytes per second for a moving window on a 1080p guest.
 
-**Phase 3 — the native viewer.** `stormvm vnc` opens a window rather than a
-browser tab.
+**Phase 3 — deferred native viewer.** Decision 3 supersedes the original
+viewer milestone. Only the development harness is committed scope.
 
 **Phase 4 — the latency work.** `ContinuousUpdates` + `Fence`, and whatever
 the phase-1 measurements said was actually slow.
@@ -226,7 +226,7 @@ this".
 | Fallback needed | no | yes, when WebGL is unavailable |
 
 Two things make the CPU-conversion column moot. The client sends
-`SetPixelFormat` to pin RGBA8888 little-endian, so the *server* converts and
+`SetPixelFormat` to pin RGBX8888 little-endian (the unused byte must be set to opaque alpha by the client), so the *server* converts and
 the decoder never sees 16-bit or colour-mapped pixels. And the `ImageData`
 can be constructed over a view into WASM linear memory, so the decoder
 writes where the browser reads — one copy at worst. (Watch for WASM memory
@@ -318,3 +318,21 @@ the codec.
 
 Depended on by, eventually: `stormconsole` (the graphical console tab, one
 import away) and `stormvm` (the Rust VMM display, stormvm#1). Neither today.
+
+## Implementation review (2026-09-09)
+
+Normative reference: [RFC 6143](https://www.rfc-editor.org/rfc/rfc6143).
+
+- Wire RGBX is not RGBA: the spare byte is unspecified; normalize alpha to 255.
+- ZRLE uses one persistent zlib stream per connection, 64×64 tiles, and
+  forbids TRLE palette reuse modes 127 and 129. Bare TRLE uses 16×16 tiles;
+  only the shared tile primitives belong in the internal module.
+- Decode incomplete input without consuming it. Bound buffered bytes, pixels,
+  strings, rectangle counts and inflated data before allocating. Invalid data
+  terminates a session; callers must not resume its compression state.
+- Negotiate RFB 3.8 explicitly. Older versions and extended desktop/latency
+  extensions remain outside the first implementation.
+- None and VNC Auth are supported protocol choices, not transport security.
+- Phase exit requires real guest/browser validation and comparison with noVNC;
+  unit tests alone do not authorize removing noVNC from stormconsole.
+- All crates and the npm wrapper remain non-publishable while the repo is private.

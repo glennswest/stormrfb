@@ -62,6 +62,15 @@ builds".
       internal**, not advertised, because ZRLE is zlib-wrapped TRLE and the
       frames cross a real network to the browser regardless
 
+### Active implementation sequence
+
+1. Bounded wire primitives, pixel formats, client messages and RFB 3.8 handshake.
+2. Rectangle codecs, persistent ZRLE, framebuffer client, round-trip tests and fuzz target.
+3. Server session, browser binding and optional native harness.
+4. Linux/WASM validation, real server fixtures where available, and honest exit status.
+
+Commit and push each increment before testing on dev. Keep packages private.
+
 ### Phase 1 — a client that replaces noVNC
 
 - [ ] `stormrfb`: handshake, `None` + VNC Auth, pixel formats, message

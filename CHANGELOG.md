@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **docs:** review protocol invariants, correct RGBX/alpha and deferred viewer scope, record implementation sequence
 - **docs:** `docs/DESIGN.md` — the definition. RFB in Rust, sans-I/O codec,
   a client for stormconsole and a server for stormvm#1's Rust-VMM display;
   the protocol subset divided into must / worth-having / deliberately out;
