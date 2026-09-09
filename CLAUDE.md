@@ -67,8 +67,9 @@ builds".
 User requested fixing the measured browser slowdown. Preserve v0.1.0 as the
 baseline. Setup/decode split and profiling identified redundant initialization,
 tile allocations and per-pixel framebuffer copies. The optimized QEMU replay
-measured 0.361 ms/frame vs 1.319 before and 0.967 for noVNC. Complete final
-Chromium/fuzz validation and record the performance patch.
+measured 0.361 ms/frame vs 1.319 before and 0.967 for noVNC. Final
+Chromium, native, 25-test Rust suite and sanitizer fuzz validation passed.
+See `docs/PERFORMANCE.md`; remaining work is the downstream integration gates.
 
 ### Active implementation sequence
 

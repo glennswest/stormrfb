@@ -21,7 +21,8 @@ Rust VMM, and one codec underneath that neither owns.
 **Status: initial implementation tested.** Private Rust codec, framebuffer
 client, server session, canvas WASM binding and native development harness.
 See [validation results](docs/VALIDATION.md) for tests, measurements and
-remaining integration gates. stormconsole continues to use noVNC.
+remaining integration gates, and [the performance patch](docs/PERFORMANCE.md)
+for the measured decoder improvement. stormconsole continues to use noVNC.
 
 Tests run on the Linux development host using `cargo test --workspace`,
 with `CARGO_TARGET_DIR` on its build volume. Push commits to GitHub and

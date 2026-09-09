@@ -1,5 +1,9 @@
 # Implementation and validation — 2026-09-09
 
+The subsequent [performance patch](PERFORMANCE.md) fixes the measured WASM
+slowdown and records the new validation results. The numbers below preserve
+the initial v0.1.0 baseline.
+
 The repository now contains a working RFB 3.8 implementation, not a replacement
 for the deployed noVNC client yet. All Rust builds and tests below ran on the
 Linux development host after pushing to GitHub and pulling there with `gh`
@@ -28,7 +32,7 @@ authentication. No Rust build/test/check ran on the workstation.
 
 No crate is publishable and the npm package has `private: true`.
 
-## Results
+## Results (v0.1.0 baseline)
 
 Host: x86_64 Linux, 8 vCPUs, reported Intel Core Ultra 7 270K Plus;
 Rust 1.95.0, Node 22.22.2, wasm-bindgen 0.2.128. Captures and measurements
@@ -55,7 +59,7 @@ bugs. Committed tests explicitly cover oversized text/framebuffers, rectangle
 budgets including LastRect sentinel counts, inflated-data caps, terminal
 failure, malformed palettes/runs and CopyRect bounds.
 
-## Measurements
+## Measurements (v0.1.0 baseline)
 
 Same QEMU 720×400 static firmware session, two ZRLE full updates, 1,804 total
 wire bytes (902 bytes/frame). Each microbenchmark warms 20 sessions and times
