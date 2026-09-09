@@ -322,10 +322,12 @@ pub fn keysym(key: &str) -> Option<u32> {
     if special != 0 {
         return Some(special);
     }
-    if let Some(n) = key.strip_prefix('F').and_then(|n| n.parse::<u32>().ok()) {
-        if (1..=12).contains(&n) {
-            return Some(0xffbd + n);
-        }
+    if let Some(n) = key
+        .strip_prefix('F')
+        .and_then(|n| n.parse::<u32>().ok())
+        .filter(|n| (1..=12).contains(n))
+    {
+        return Some(0xffbd + n);
     }
     let mut chars = key.chars();
     let c = chars.next()? as u32;

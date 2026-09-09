@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **fix:** simplify session branches flagged by strict Clippy after 18 passing Linux tests
 - **feat:** framebuffer client, renderer seam, DOM key translation and sans-I/O server sessions; byte-fragmented authenticated end-to-end tests and overlap-copy regression tests
 - **fix:** remove redundant test clones reported by Linux strict Clippy; all 12 codec tests passed
 - **feat:** Raw, CopyRect, Hextile, persistent ZRLE, cursor/resize/LastRect and control messages; shared rectangle encoder, tile conformance tests and decoder fuzz target

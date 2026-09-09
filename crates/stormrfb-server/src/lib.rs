@@ -260,10 +260,11 @@ impl Server {
         let bytes =
             self.encoder
                 .update(&[Rectangle::Pixels { rect, pixels }], self.format, encoding)?;
-        if let Some(dirty) = self.dirty {
-            if intersection(dirty, rect) == Some(dirty) {
-                self.dirty = None;
-            }
+        if self
+            .dirty
+            .is_some_and(|dirty| intersection(dirty, rect) == Some(dirty))
+        {
+            self.dirty = None;
         }
         self.request = None;
         Ok(Some(bytes))
