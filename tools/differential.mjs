@@ -4,8 +4,9 @@ import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 const { default: ZRLEDecoder } = await import(pathToFileURL(process.env.NOVNC_ROOT + '/core/decoders/zrle.js'));
 const root = new URL('../', import.meta.url);
-const data = await readFile(new URL('fixtures/qemu-zrle.rfb', root));
-const metadata = JSON.parse(await readFile(new URL('fixtures/qemu-zrle.json', root)));
+const fixture = process.argv[2] || 'qemu-zrle';
+const data = await readFile(new URL(`fixtures/${fixture}.rfb`, root));
+const metadata = JSON.parse(await readFile(new URL(`fixtures/${fixture}.json`, root)));
 const { width, height } = metadata;
 function replay() {
   const fb = new Uint8Array(width * height * 4);

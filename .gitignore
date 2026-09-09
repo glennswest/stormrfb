@@ -37,3 +37,7 @@ fuzz/artifacts
 *.log
 tmp/
 temp/
+
+# Python capture tooling
+__pycache__/
+*.pyc

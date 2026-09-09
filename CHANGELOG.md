@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **test:** add isolated TigerVNC striped-screen capture with XGetImage pixel oracle; generalize noVNC fixture replay
 - **test:** expand fuzzing through valid zlib framing into arbitrary tile subencodings; remove per-pixel allocation from the noVNC oracle benchmark shim
 - **fix:** enforce rectangle budget for LastRect sentinel updates
 - **feat:** negotiate server DesktopSize updates with full refresh after resize
