@@ -160,3 +160,23 @@ fn unknown_count_still_obeys_rectangle_budget() {
     assert_eq!(d.next(&r), Err(Error::Limit));
     assert!(d.next(&[]).is_err());
 }
+#[test]
+fn inflated_data_is_bounded_and_failure_is_terminal() {
+    let r = Rectangle::Pixels {
+        rect: Rect {
+            width: 64,
+            height: 64,
+            ..Rect::default()
+        },
+        pixels: vec![[0, 0, 0, 255]; 4096],
+    };
+    let mut b = ServerEncoder::new(Limits::default())
+        .update(&[r], PixelFormat::RGBX, ZRLE)
+        .unwrap();
+    // Claim one pixel while retaining a compressed full tile.
+    b[8..12].copy_from_slice(&[0, 1, 0, 1]);
+    let mut d = ServerDecoder::new(PixelFormat::RGBX, Limits::default()).unwrap();
+    d.next(&b).unwrap();
+    assert_eq!(d.next(&b[4..]), Err(Error::Limit));
+    assert!(d.next(&[]).is_err());
+}

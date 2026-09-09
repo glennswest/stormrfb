@@ -231,6 +231,19 @@ impl Server {
                         ClientMessage::SetPixelFormat(format) => self.format = format,
                         ClientMessage::SetEncodings(encodings) => self.encodings = encodings,
                         ClientMessage::UpdateRequest { incremental, rect } => {
+                            // The client still knows the old dimensions until it
+                            // receives DesktopSize; accept its triggering request.
+                            if self.pending_resize {
+                                self.request = Some((
+                                    false,
+                                    Rect {
+                                        width: self.init.width,
+                                        height: self.init.height,
+                                        ..Rect::default()
+                                    },
+                                ));
+                                continue;
+                            }
                             if !rect.within(self.init.width, self.init.height) {
                                 return Err(Error::Invalid("update request bounds"));
                             }

@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### 2026-09-09
+- **fix:** accept pre-resize client requests until DesktopSize is delivered
+- **test:** replay TigerVNC pixels, enforce decompression bounds and measure compiled WASM against the same QEMU fixture
 - **test:** record TigerVNC striped-screen fixture and fuzz dependency lock after independent capture
 - **fix:** preflight incomplete Hextile payloads before framebuffer allocation, check encoder size arithmetic and initialization byte limits
 - **test:** add bounded-frame native harness mode for automated window smoke tests

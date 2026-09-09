@@ -160,3 +160,31 @@ fn resize_waits_for_request_and_client_requests_new_full_frame() {
     exchange(&mut c, &mut s, b);
     assert_eq!(&c.framebuffer().unwrap().rgba()[..4], &[1, 2, 3, 255]);
 }
+#[test]
+fn resize_accepts_request_using_old_dimensions() {
+    let mut s = server(Security::None);
+    s.receive(VERSION).unwrap();
+    s.receive(&[1]).unwrap();
+    s.receive(&[1]).unwrap();
+    s.receive(
+        &ClientMessage::SetEncodings(vec![RAW, DESKTOP_SIZE])
+            .encode(Limits::default())
+            .unwrap(),
+    )
+    .unwrap();
+    s.resize(1, 1).unwrap();
+    s.receive(
+        &ClientMessage::UpdateRequest {
+            incremental: false,
+            rect: Rect {
+                width: 4,
+                height: 3,
+                ..Rect::default()
+            },
+        }
+        .encode(Limits::default())
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(s.update().unwrap().is_some());
+}
