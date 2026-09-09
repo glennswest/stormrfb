@@ -5,3 +5,14 @@ edition.workspace = true
 publish.workspace = true
 [dependencies]
 stormrfb.workspace = true
+
+[features]
+native-harness = ["dep:minifb"]
+[dependencies.minifb]
+version = "0.28"
+optional = true
+default-features = false
+features = ["x11"]
+[[example]]
+name = "viewer"
+required-features = ["native-harness"]

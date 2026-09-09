@@ -56,3 +56,9 @@ The workspace contains `stormrfb` (wire codec), `stormrfb-client` (RGBA
 framebuffer, damage and input), and `stormrfb-server` (one session per
 connection, authentication and requested damage updates). Applications own
 transport, authorization and fresh VNC-auth challenges. The codec owns no I/O.
+
+`stormrfb-wasm` and `web/` provide the private canvas 2D package. See
+[web/README.md](web/README.md) for usage. The optional development window
+runs with `cargo run -p stormrfb-client --example viewer --features
+native-harness -- HOST:PORT`; it is a mouse-driven debugging harness, not
+a shipped viewer.
