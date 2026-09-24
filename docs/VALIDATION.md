@@ -7,7 +7,9 @@ the initial v0.1.0 baseline.
 The repository now contains a working RFB 3.8 implementation, not a replacement
 for the deployed noVNC client yet. All Rust builds and tests below ran on the
 Linux development host after pushing to GitHub and pulling there with `gh`
-authentication. No Rust build/test/check ran on the workstation.
+authentication. No Rust build/test/check ran on the workstation. (That
+checkout on dev has since been retired. Builds now go through `sc-build`;
+see §Reproduce.)
 
 ## Implemented
 
@@ -86,8 +88,24 @@ build measurement and should not be used to claim a size reduction yet.
 
 ## Reproduce
 
-On the designated Linux host, pull the pushed commit first. Set
-`CARGO_TARGET_DIR` to its build-volume target directory. Put the matching
+The Rust part runs through `sc-build` after `git push`. It fetches the
+pushed commit onto dev as the unprivileged build user, builds it in a
+scratch directory and deletes it:
+
+```sh
+sc-build 'cargo test --workspace --locked'
+sc-build 'cargo clippy --workspace --all-targets --locked -- -D warnings'
+sc-build 'cargo run --release -p stormrfb-client --example replay'
+```
+
+The rest of `tools/validate.sh` (WASM build, Node/Chromium tests, noVNC
+differential, X11 harness) and fuzzing cannot run under `sc-build` today:
+the build user has no `wasm32-unknown-unknown` target, no nightly
+toolchain or cargo-fuzz, and no `wasm-bindgen` on `PATH`. The 2026-09-09
+runs used the setup below, as root on dev. Running them again needs that
+toolchain installed for the build user, which is a host change for the
+owner. Setup: set
+`CARGO_TARGET_DIR` to a build-volume target directory. Put the matching
 `wasm-bindgen` CLI on PATH and install the `wasm32-unknown-unknown` target.
 For browser/oracle checks, install `@novnc/novnc@1.7.0` and Playwright externally;
 set `NOVNC_ROOT` and `PLAYWRIGHT_ROOT` to those packages and
@@ -115,8 +133,9 @@ reviewing its independent metadata and updating the expected checksum in
 
 - A Windows installer and Linux guest through the actual stormconsole relay,
   with browser performance and production chunk measurements, have not been
-  validated. No downstream import or dependency was changed. Keep noVNC until
-  that integration gate passes.
+  validated. Since 2026-09-22, stormconsole vendors this package (at
+  `29305ab`) as an opt-in client (`?rfb=storm`). noVNC stays the default
+  until that integration gate passes.
 - stormvm owns the virtio-gpu/vhost-user integration. The real 1080p moving
   guest server fps/bytes-per-second measurement is pending that integration.
 - RFB 3.3/3.7, indexed-colour pixel formats, ExtendedDesktopSize client resize,

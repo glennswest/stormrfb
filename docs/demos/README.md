@@ -3,7 +3,10 @@
 The interactive demo is in `web/demo/`, served by `node tools/demo-server.mjs`.
 See [web setup](../../web/README.md) for the Linux build and browser-test setup.
 
-`stormrfb-demo.webm` records Chromium using the actual release Rust/WASM client:
+`tools/demo-test.mjs` drives Chromium with the actual release Rust/WASM
+client. It writes a WebM recording and screenshots to `DEMO_OUTPUT`
+(default `/build/cargo/stormrfb-demo`). Neither is committed to this repo.
+The demo shows:
 
 - Moving synthetic desktop encoded as Raw RFB rectangle updates.
 - Damage overlay, pause/step, RGBA inspection and packet fragmentation.

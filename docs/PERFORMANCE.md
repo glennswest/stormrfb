@@ -78,8 +78,10 @@ pixels, alpha normalization and zero-width rectangles.
 
 ## Reproduce and limits
 
-After pushing and pulling on the designated host, configure the external test
-tools as described in [VALIDATION.md](VALIDATION.md):
+These need the WASM toolchain, Node and an external noVNC. They were run on
+2026-09-09 on the dev host, which is not reachable through `sc-build` today.
+See [VALIDATION.md §Reproduce](VALIDATION.md#reproduce). The native replay
+runs with `sc-build 'cargo run --release -p stormrfb-client --example replay'`.
 
 ```sh
 sh tools/validate.sh
