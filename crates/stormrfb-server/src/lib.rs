@@ -1,4 +1,8 @@
 //! One sans-I/O RFB server session per client. Transport supplies authentication entropy.
+//!
+//! Updates are pixel rectangles only (never CopyRect or Cursor), encoded with
+//! the first of Raw/Hextile/ZRLE in the client's `SetEncodings` order; the
+//! encoder emits raw tiles for Hextile and ZRLE.
 #![forbid(unsafe_code)]
 use stormrfb::*;
 /// Supply a fresh cryptographically random challenge for every VNC-auth session.

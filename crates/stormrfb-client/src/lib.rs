@@ -19,7 +19,9 @@ pub enum Event {
     Bell,
     CutText(Vec<u8>),
 }
-/// Renderer seam: browser and development harness consume the same framebuffer.
+/// Renderer seam for native consumers, so another renderer can be added
+/// without touching the client. Nothing in this workspace implements it:
+/// the WASM binding and the development harness read [`Framebuffer::rgba`].
 pub trait Renderer {
     type Error;
     fn paint(

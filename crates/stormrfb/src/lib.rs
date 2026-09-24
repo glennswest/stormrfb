@@ -1,4 +1,9 @@
 //! Bounded, sans-I/O RFB 3.8 protocol primitives.
+//!
+//! Security None and VNC Auth; true-colour 16/32-bit pixel formats; Raw,
+//! CopyRect, Hextile and persistent ZRLE, plus Cursor, DesktopSize and
+//! LastRect. Every length is checked against [`Limits`]. Errors other than
+//! [`Error::Incomplete`] are terminal for the decoder that returned them.
 #![forbid(unsafe_code)]
 mod handshake;
 mod pixel;
