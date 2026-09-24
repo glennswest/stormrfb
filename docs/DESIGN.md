@@ -1,8 +1,10 @@
 # stormrfb — the design
 
-**Status: initial implementation tested.** See [VALIDATION.md](VALIDATION.md)
-for delivered scope, measured results and remaining downstream integration gates.
-This document preserves the intended architecture and phased exits.
+**Status (checked against the code 2026-09-24): phase 1 and the phase 2
+protocol half are implemented and tested; the phase exits are not met.**
+This document is the design. Where the code does not do something yet, the
+text says **(design — not built)**. For what the code does, read
+[README.md](../README.md); for what was validated, [VALIDATION.md](VALIDATION.md).
 
 ## The one sentence
 
@@ -72,17 +74,26 @@ client big.
 | Client→server | `SetEncodings`, `FramebufferUpdateRequest` (incremental and full), `KeyEvent`, `PointerEvent`, `ClientCutText` |
 | Server→client | `FramebufferUpdate`, `SetColourMapEntries`, `Bell`, `ServerCutText` |
 
+As built: all of the above. `SetColourMapEntries` is decoded but has no
+effect, since colour-map pixel formats are rejected and the client pins
+true colour. The server encoder emits Raw, and Hextile and ZRLE with
+raw tiles only; smarter tile subencodings are not built.
+
 `Raw` alone is enough to see a screen and is the correctness baseline every
 other encoding is diffed against. `ZRLE` is what makes it usable over a
 link that is not a loopback.
 
 ### Worth having, roughly in order
 
+As built: `Cursor` (-239), `DesktopSize` (-223) and `LastRect` (-224).
+`ExtendedDesktopSize`, `ContinuousUpdates` and `Fence` are
+**(design — not built)**.
+
 - **`DesktopSize` (-223) and `ExtendedDesktopSize` (-308)** — a console
   whose framebuffer does not follow the window is unpleasant to use, and
   `ExtendedDesktopSize` is how a client *asks* for a resize rather than
   only being told about one.
-- **`Cursor` (-239) / `RichCursor` (-239)** — a client-side cursor. Without
+- **`Cursor` (-239, a.k.a. RichCursor)** — a client-side cursor. Without
   it, every mouse move is a framebuffer round trip and the pointer lags
   behind the hand.
 - **`LastRect` (-224)** — lets a server end an update without a count.
@@ -119,11 +130,13 @@ stormrfb-server     drives it the other way, for stormvm#1: takes a
 
 stormrfb-wasm       the browser binding. wasm-bindgen, canvas ImageData (or
                     WebGL if measurement says so), DOM key/mouse → RFB
-                    events, published as an npm package the way stormview
-                    publishes both a crate and a package.
+                    events. As built: canvas 2D, private package
+                    `@stormrfb/client` in web/, not published (decision 2);
+                    stormconsole vendors the built files.
 
-stormrfb-view       optional: a native viewer, so `stormvm vnc` is a real
-                    command rather than "open the console in a browser".
+stormrfb-view       (design — not built, deferred by decision 3): a native
+                    viewer. Only the feature-gated development harness
+                    (stormrfb-client example `viewer`) exists.
 ```
 
 Three properties this buys:
@@ -156,7 +169,9 @@ that, take it — but measure first, and record the number.
 - **Round-trip.** Every message type: encode → decode → compare. The server
   half makes this free.
 - **Differential.** Decode the same session with noVNC and with this, and
-  compare framebuffer hashes per update. While noVNC is the thing shipping,
+  compare framebuffer hashes. (As built, `tools/differential.mjs` compares
+  the final framebuffer of each fixture against its independent hash, not
+  each update.) While noVNC is the thing shipping,
   it is also the oracle.
 - **Fuzz the decoder.** Non-negotiable. A framebuffer decoder consumes
   length-prefixed data whose lengths are attacker-influenced — a guest
@@ -194,16 +209,21 @@ installer and a Linux guest are both legible in stormconsole with
 `@novnc/novnc` removed from `web/package.json`. **Measured:** decode
 milliseconds per frame and bytes per frame against noVNC on the same
 recorded session, and the size of the shipped chunk against noVNC's 182 KB.
+*State:* built; the recorded-session measurements are in
+[PERFORMANCE.md](PERFORMANCE.md); stormconsole offers it behind `?rfb=storm`;
+the exit (real guests through the relay, noVNC removed) is **not met**.
 
 **Phase 2 — the server**, for stormvm#1. Takes a framebuffer and damage
 from virtio-gpu, produces updates. **Measured:** frames per second and
-bytes per second for a moving window on a 1080p guest.
+bytes per second for a moving window on a 1080p guest. *State:*
+`stormrfb-server` is built and tested; the virtio-gpu/vhost-user side is
+stormvm's and does not exist, so the measurement has not been taken.
 
 **Phase 3 — deferred native viewer.** Decision 3 supersedes the original
 viewer milestone. Only the development harness is committed scope.
 
 **Phase 4 — the latency work.** `ContinuousUpdates` + `Fence`, and whatever
-the phase-1 measurements said was actually slow.
+the phase-1 measurements said was actually slow. *State:* design — not built.
 
 ## Decisions
 
@@ -276,9 +296,11 @@ The **shipped viewer** (`stormrfb-view`): deferred, possibly forever.
   duplicates a browser tab that already exists and works. Nothing is
   blocked on it.
 
-So **`stormvm vnc` opens a local proxy port, prints it, and optionally
-launches `$VNCVIEWER`** — which is what `virtctl vnc` does, what people
-expect, and nearly free. If the harness turns out to be pleasant, promoting
+So **`stormvm vnc` opens a local proxy port** for any VNC viewer — which is
+what `virtctl vnc` does, what people expect, and nearly free. (stormvm has
+it: `stormvm vnc <vm>` bridges the hypervisor's unix VNC socket to
+`127.0.0.1:5900` by default. It does not launch `$VNCVIEWER`; that part
+was never built.) If the harness turns out to be pleasant, promoting
 it later is easy; if it does not, nothing was promised.
 
 ### 4. TRLE is an internal module, not an advertised encoding
@@ -316,8 +338,15 @@ Depends on: nothing in this stack. It is a protocol implementation and
 should stay one — no `stormview`, no `console-core`, no platform types in
 the codec.
 
-Depended on by, eventually: `stormconsole` (the graphical console tab, one
-import away) and `stormvm` (the Rust VMM display, stormvm#1). Neither today.
+Depended on by, as of 2026-09-24:
+
+- `stormconsole` vendors the built browser package
+  (`web/src/lib/vendor/stormrfb/`, commit in `VERSION`) and offers it on
+  the VM page as `?rfb=storm`. noVNC stays the default until the phase-1
+  exit is met.
+- `stormrdp` uses `stormrfb-client` (`stormrdp-host-rfb`, VNC→RDP bridge)
+  and `stormrfb-server` (bench tooling) as git dependencies pinned by rev.
+- `stormvm` (the Rust VMM display, stormvm#1) does not yet use it.
 
 ## Implementation review (2026-09-09)
 
