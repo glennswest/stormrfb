@@ -48,6 +48,19 @@ builds".
 
 ## Work plan
 
+### In progress — #2 docs from the code (2026-09-24)
+
+- [ ] CLAUDE.md: replace the stale root@dev build recipe with `sc-build`
+- [ ] README.md rewritten from the code: crates, public API, limits
+      (defaults from `Limits::default`), wire subset, build, ports (none;
+      demo server loopback :8765), how it ships (no golden — vendored into
+      stormconsole, git dependency of stormrdp)
+- [ ] docs/DESIGN.md: mark design-only parts; correct stormconsole status
+- [ ] docs/VALIDATION.md, PERFORMANCE.md, demos, web/README: reproduce via
+      sc-build; drop the never-committed demo WebM claim
+- [ ] Crate doc comments; CHANGELOG; sc-build; issues for promises the
+      code does not keep; close #2
+
 ### Phase 0 — definition (2026-09-09)
 
 - [x] `docs/DESIGN.md` — scope, the protocol subset, architecture, phasing
