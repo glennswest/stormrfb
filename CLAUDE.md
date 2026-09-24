@@ -20,20 +20,24 @@ If the server half were not needed, keeping noVNC would be the right answer
 and this repo should not have been created. Do not let it drift into a
 licence-avoidance exercise.
 
-## Build on dev, never on this Mac
-
-Same rule as every project here: **every `cargo build/test/check` runs on
-`root@dev.g8.lo`.** A WASM target and a Linux vhost-user server are both
-things a macOS build will either skip or misrepresent.
+## Build with sc-build, never locally, never as root
 
 ```
-commit  →  push  →  ssh root@dev.g8.lo 'cd /root/stormrfb && git pull && \
-    CARGO_TARGET_DIR=/build/cargo/stormrfb cargo test'
+commit  →  push  →  sc-build 'cargo test --workspace --locked'
 ```
 
-Target dirs live on dev's 2 TB spinning drive (`/build/cargo/stormrfb`),
-never on the SSD root — see ~/CLAUDE.md "Nothing lives on the SSD between
-builds".
+`sc-build` builds the pushed commit on dev as the unprivileged build user in
+a scratch directory. There is no checkout on dev and no `ssh root@`.
+
+The build user has no `wasm32-unknown-unknown` target, no nightly toolchain
+or cargo-fuzz, and no `wasm-bindgen` on `PATH`. So the WASM package, the
+browser/noVNC checks in `tools/validate.sh` and fuzzing cannot be rerun
+today. Installing them is a host change for the owner, not something to
+work around.
+
+**Shipping:** no golden of its own. stormconsole vendors the built web
+package (`web/src/lib/vendor/stormrfb/VERSION`), and stormrdp pins the
+crates by git rev. Consumers pick up a change only by bumping their pin.
 
 ## Conventions
 
@@ -48,18 +52,23 @@ builds".
 
 ## Work plan
 
-### In progress — #2 docs from the code (2026-09-24)
+### Status (2026-09-24)
 
-- [ ] CLAUDE.md: replace the stale root@dev build recipe with `sc-build`
-- [ ] README.md rewritten from the code: crates, public API, limits
-      (defaults from `Limits::default`), wire subset, build, ports (none;
-      demo server loopback :8765), how it ships (no golden — vendored into
-      stormconsole, git dependency of stormrdp)
-- [ ] docs/DESIGN.md: mark design-only parts; correct stormconsole status
-- [ ] docs/VALIDATION.md, PERFORMANCE.md, demos, web/README: reproduce via
-      sc-build; drop the never-committed demo WebM claim
-- [ ] Crate doc comments; CHANGELOG; sc-build; issues for promises the
-      code does not keep; close #2
+v0.1.1. Code unchanged since the 2026-09-09 performance patch apart from
+the demo. Docs were rewritten from the code in #2. Consumers:
+stormconsole (opt-in `?rfb=storm`, vendored at `29305ab`; noVNC default)
+and stormrdp (git pins). Open: #1 QEMU Extended Key Event (asked for by
+stormrdp), #3 presentation.
+
+### Done — #2 docs from the code (2026-09-24)
+
+- [x] CLAUDE.md: replace the stale root@dev build recipe with `sc-build`
+- [x] README.md rewritten from the code (crates, APIs, Limits, subset,
+      no ports/golden, how it ships)
+- [x] docs/DESIGN.md: mark design-only parts; correct consumers
+- [x] VALIDATION/PERFORMANCE/demos/web README: sc-build, downstream status,
+      demo WebM not committed
+- [x] Crate doc comments; CHANGELOG; sc-build; follow-up issues; close #2
 
 ### Phase 0 — definition (2026-09-09)
 
@@ -101,7 +110,7 @@ Commit and push each increment before testing on dev. Keep packages private.
 - [x] `stormrfb`: handshake, `None` + VNC Auth, pixel formats, message
       types, encode/decode round-trip
 - [x] Encodings: Raw, CopyRect, Hextile, ZRLE (TRLE as needed by ZRLE)
-- [x] Pseudo-encodings: `Cursor`/`RichCursor`, `DesktopSize`, `LastRect`
+- [x] Pseudo-encodings: `Cursor` (-239, a.k.a. RichCursor), `DesktopSize`, `LastRect`
 - [x] `stormrfb-client`: framebuffer state, damage rectangles, input
       translation
 - [x] Native harness (feature-gated, unpolished): a window and a blit, so
@@ -131,8 +140,8 @@ Deferred by decision 3; only the development harness is implemented.
 
 ## Integration, when phase 1 lands
 
-stormconsole's VM page lazily imports `@novnc/novnc` in
-`web/src/lib/views/VmDetail.svelte`, behind a capability probe. The door it
+stormconsole's VM page (`web/src/lib/views/VmDetail.svelte`) lazily imports
+`@novnc/novnc` by default and the vendored stormrfb client with `?rfb=storm`. The door it
 dials — `/api/plugins/vm/console/{ns}/{name}/vnc` — is a websocket relay
 that passes frames through untouched and knows nothing about RFB. Swapping
 the import is the whole integration; do not change the door.

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### 2026-09-24
+- **docs:** rewrite README from the code: crates, public APIs, `Limits` defaults (the only configuration), protocol subset, no ports/golden, and shipping through stormconsole's vendored package and stormrdp's git pins (#2)
+- **docs:** DESIGN marks unbuilt parts (ExtendedDesktopSize, ContinuousUpdates/Fence, native viewer, `$VNCVIEWER` launch) and records current consumers; VALIDATION/PERFORMANCE reproduce through `sc-build` and say which checks cannot run there; demo README no longer claims a committed WebM (#2)
+- **docs:** crate docs state the protocol subset; `Renderer` documented as unused in this workspace (#2)
+- **docs:** CLAUDE.md builds with `sc-build` instead of `ssh root@dev` (#2)
+
 - **demo:** add an interactive real-WASM framebuffer animation with damage overlays, RGBA inspection, fragmented packet mode and independently checked QEMU ZRLE replay
 
 - **docs:** explain RFB, RGBA and damage in the project deck and remove noVNC deployment-status wording
