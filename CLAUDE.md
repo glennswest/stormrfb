@@ -60,7 +60,7 @@ stormconsole (opt-in `?rfb=storm`, vendored at `29305ab`; noVNC default)
 and stormrdp (git pins). Open: #1 QEMU Extended Key Event (asked for by
 stormrdp), #3 presentation.
 
-### Done — #2 docs from the code (2026-09-24)
+### Nearly done — #2 docs from the code (2026-09-24)
 
 - [x] CLAUDE.md: replace the stale root@dev build recipe with `sc-build`
 - [x] README.md rewritten from the code (crates, APIs, Limits, subset,
@@ -68,7 +68,12 @@ stormrdp), #3 presentation.
 - [x] docs/DESIGN.md: mark design-only parts; correct consumers
 - [x] VALIDATION/PERFORMANCE/demos/web README: sc-build, downstream status,
       demo WebM not committed
-- [x] Crate doc comments; CHANGELOG; sc-build; follow-up issues; close #2
+- [x] Crate doc comments; CHANGELOG; follow-up issues #4–#7
+- [x] `sc-build` rustdoc with `-D warnings` at c9bf72f passed
+- [ ] `sc-build 'cargo test --workspace --locked'`: not run yet (the local
+      session killed it for low memory), then close #2
+- Build box lacks rustfmt and clippy for the build user; sc-build also
+  printed script errors (line 79 `.`, line 101 `work` unbound) after a run
 
 ### Phase 0 — definition (2026-09-09)
 
