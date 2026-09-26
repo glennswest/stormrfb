@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### 2026-09-26
+- **chore:** verified #2 with `sc-build 'cargo test --workspace --locked'` at 86f86d9 (25 tests passed); work plan updated
+
 ### 2026-09-24
 - **docs:** rewrite README from the code: crates, public APIs, `Limits` defaults (the only configuration), protocol subset, no ports/golden, and shipping through stormconsole's vendored package and stormrdp's git pins (#2)
 - **docs:** DESIGN marks unbuilt parts (ExtendedDesktopSize, ContinuousUpdates/Fence, native viewer, `$VNCVIEWER` launch) and records current consumers; VALIDATION/PERFORMANCE reproduce through `sc-build` and say which checks cannot run there; demo README no longer claims a committed WebM (#2)

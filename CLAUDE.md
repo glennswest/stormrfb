@@ -52,15 +52,15 @@ crates by git rev. Consumers pick up a change only by bumping their pin.
 
 ## Work plan
 
-### Status (2026-09-24)
+### Status (2026-09-26)
 
 v0.1.1. Code unchanged since the 2026-09-09 performance patch apart from
 the demo. Docs were rewritten from the code in #2. Consumers:
 stormconsole (opt-in `?rfb=storm`, vendored at `29305ab`; noVNC default)
 and stormrdp (git pins). Open: #1 QEMU Extended Key Event (asked for by
-stormrdp), #3 presentation.
+stormrdp), #3 presentation, #4–#7 follow-ups from #2, #8 test containers.
 
-### Nearly done — #2 docs from the code (2026-09-24)
+### Done — #2 docs from the code (2026-09-24, closed 2026-09-26)
 
 - [x] CLAUDE.md: replace the stale root@dev build recipe with `sc-build`
 - [x] README.md rewritten from the code (crates, APIs, Limits, subset,
@@ -70,10 +70,9 @@ stormrdp), #3 presentation.
       demo WebM not committed
 - [x] Crate doc comments; CHANGELOG; follow-up issues #4–#7
 - [x] `sc-build` rustdoc with `-D warnings` at c9bf72f passed
-- [ ] `sc-build 'cargo test --workspace --locked'`: not run yet (the local
-      session killed it for low memory), then close #2
-- Build box lacks rustfmt and clippy for the build user; sc-build also
-  printed script errors (line 79 `.`, line 101 `work` unbound) after a run
+- [x] `sc-build 'cargo test --workspace --locked'` at 86f86d9 passed
+      (2026-09-26, 25 tests, exit 0, no sc-build script errors); #2 closed
+- Build box lacks rustfmt and clippy for the build user
 
 ### Phase 0 — definition (2026-09-09)
 
