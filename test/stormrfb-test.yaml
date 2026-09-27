@@ -1,0 +1,70 @@
+# stormrfb-test: how stormcentral runs stormrfb's tests on a test machine,
+# per stormcentral docs/test-standard.md (#8). The runner builds the Job itself
+# (stormcentral src/testruns.rs `job_manifest`); this file records what the
+# suites need, and is the Job to apply by hand.
+#
+# stormrfb is a library with nothing of its own on the node: it runs inside
+# stormconsole's browser package and stormrdp. Its suites run the commit's
+# own server and client against each other over the pod's loopback TCP.
+#
+# Test metadata (what the runner matches against the machine):
+#   suites:   short (< 2 min), medium (< 30 min), long (the night window)
+#   requires: []            (no hardware)
+#   api:      none          (no ServiceAccount token is used; nothing is
+#                            created in the cluster)
+#   node:     none. Loopback inside the pod only.
+#   external: optional. STORMRFB_TARGET=host:port names a real RFB 3.8
+#             server for medium's real-server test (shared session, no
+#             input sent; STORMRFB_PASSWORD if it has one). Unset, that
+#             test is skip.
+#   resources: medium's concurrent-sessions and long's waves size
+#             themselves from the pod's CPU quota (1-3 sessions per CPU)
+#             and memory (a quarter of the smaller of the cgroup limit and
+#             MemAvailable, 24 MiB per 1280x720 session), capped at 256
+#   privileged: no
+#   results:  /results/results.jsonl (the stdout lines), and for long
+#             /results/waves.jsonl (one line per wave: sessions, ms/frame,
+#             RSS, threads, fds after drain)
+#
+# The runner creates the namespace test-stormrfb-<suite>-<run id>, runs the
+# Job, collects the log (JSON lines, then a summary), and deletes the
+# namespace. Nothing is created outside the pod.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stormrfb-test
+  namespace: ${NAMESPACE}
+  labels: { storm.io/test-run: "${RUN_ID}", storm.io/component: stormrfb, storm.io/suite: "${SUITE}" }
+spec:
+  backoffLimit: 0            # a retry would hide the finding
+  activeDeadlineSeconds: ${TIMEOUT_PLUS_MARGIN}
+  template:
+    metadata:
+      labels: { storm.io/test-run: "${RUN_ID}" }
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      containers:
+        - name: test
+          image: ${IMAGE}
+          command: ["/test"]
+          args: ["${SUITE}"]
+          env:
+            - { name: STORM_NAMESPACE, value: "${NAMESPACE}" }
+            - { name: STORM_RUN_ID, value: "${RUN_ID}" }
+            - { name: STORM_NODE, value: "${NODE}" }
+            - { name: STORM_SUITE, value: "${SUITE}" }
+            - { name: STORM_TIMEOUT, value: "${TIMEOUT}" }
+            - { name: STORM_COMPONENT, value: stormrfb }
+            - { name: STORM_COMMIT, value: "${COMMIT}" }
+            # - { name: STORMRFB_TARGET, value: "host:5900" }
+          volumeMounts:
+            - { name: results, mountPath: /results }
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities: { drop: ["ALL"] }
+      volumes:
+        - { name: results, emptyDir: {} }

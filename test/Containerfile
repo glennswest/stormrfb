@@ -1,0 +1,14 @@
+# stormrfb-test: stormrfb's test image, per stormcentral
+# docs/test-standard.md (#8). One image for all three suites: the Job runs
+# `/test short|medium|long`.
+#
+# test/build.sh builds the static (musl) test binary on the build box and
+# stages it; this packages it. The build context is the repo root (the
+# standard's). The suites talk RFB over the pod's own loopback, and to an
+# optional STORMRFB_TARGET, and use no API: no trust store, no token, no
+# tools, no privileges. FROM scratch.
+FROM scratch
+ARG COMMIT=unknown
+LABEL storm.io/test-of="stormrfb" storm.io/test-commit="${COMMIT}"
+COPY test/.stage/stormrfb-test /test
+ENTRYPOINT ["/test"]

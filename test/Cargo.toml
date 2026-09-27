@@ -1,0 +1,29 @@
+[package]
+name = "stormrfb-test"
+version = "0.1.0"
+edition = "2024"
+description = "stormrfb's test container: short, medium and long suites, per stormcentral docs/test-standard.md (#8)."
+license = "MIT"
+publish = false
+
+# Its own workspace, as fuzz/ is: the crates' `cargo test --workspace` does
+# not build it, and stormrdp's git pins never see it.
+[workspace]
+
+# The crates of the commit under test, by path. Nothing else: sockets,
+# JSON and /proc are hand-rolled on std so the binary stays small and static.
+[dependencies]
+stormrfb = { path = "../crates/stormrfb" }
+stormrfb-client = { path = "../crates/stormrfb-client" }
+stormrfb-server = { path = "../crates/stormrfb-server" }
+
+[[bin]]
+name = "stormrfb-test"
+path = "src/main.rs"
+
+# Measured numbers come from this profile: optimised like a consumer's
+# release build, not the workspace's size-tuned opt-level "s".
+[profile.release]
+opt-level = 3
+codegen-units = 1
+strip = true

@@ -41,3 +41,6 @@ temp/
 # Python capture tooling
 __pycache__/
 *.pyc
+
+# Test container staging (test/build.sh)
+test/.stage/
