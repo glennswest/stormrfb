@@ -67,7 +67,7 @@ at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
 (#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
 overflow, #12 test-crate lint.
 
-### Nearly done — docs refresh since 2026-09-18 (2026-09-27)
+### Done — docs refresh since 2026-09-18 (2026-09-27)
 
 Only doc comments and `test/` changed in code since 2026-09-18.
 - [x] README: the test image's env configuration, its loopback sockets,
@@ -79,7 +79,7 @@ Only doc comments and `test/` changed in code since 2026-09-18.
 - [x] sc-build at 1392373: workspace clippy -D warnings and fmt pass;
       test crate does not (filed #12); stormconsole's console.rs comment
       says `{id}` (filed stormconsole#39)
-- [ ] sc-build cargo test at the pushed commit
+- [x] sc-build at 13581c5: 25 tests pass; deck renders 12 slides
 
 ### Done — #8 test container (2026-09-27)
 
