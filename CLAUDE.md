@@ -70,18 +70,21 @@ pod, and say so. A real RFB server is optional (`STORMRFB_TARGET`), skip
 when unset. stormvm's console door mints tokens only from node loopback,
 and the real-guest path is #4.
 
-- [ ] `test/`: own workspace (`stormrfb-test`), `build.sh` (static musl),
+- [x] `test/`: own workspace (`stormrfb-test`), `build.sh` (static musl),
       `Containerfile` (FROM scratch, `/test <suite>`), `stormrfb-test.yaml`
-- [ ] short: loopback session, VNC auth, fixture replays, encoding × pixel
+- [x] short: loopback session, VNC auth, fixture replays, encoding × pixel
       format matrix
-- [ ] medium: + input, resize, fragmentation, hostile input, small limits,
+- [x] medium: + input, resize, fragmentation, hostile input, small limits,
       concurrent sessions, 1080p moving window, optional real server
-- [ ] long: waves of concurrent sessions sized from cgroup CPU/memory;
+- [x] long: waves of concurrent sessions sized from cgroup CPU/memory;
       per-wave ms/frame, RSS, fds, threads; regression = failure
-- [ ] sc-build: workspace tests + `test/build.sh` + run short/medium (and
-      a shortened long) on dev; `stormcentral test run` if it accepts a
-      library component
-- [ ] README/VALIDATION/CHANGELOG; close #8
+- [x] sc-build at 6ba5511: short 5/5, medium 14 + 1 skip, long (180 s)
+      34 waves + trend, all exit 0; podman image 860 KB, `/test short` in
+      it as uid 65532 with no network: 5/5; workspace 25 tests
+- [ ] `stormcentral test run stormrfb short` (run d105522374 on C2NR0Q2);
+      stormcentral#56 breaks the runner's image step for every component
+- [x] README/VALIDATION/CHANGELOG
+- [ ] close #8 and #9 (sc-build's lockfile failure)
 
 ### Done — #3 presentation (2026-09-27)
 
