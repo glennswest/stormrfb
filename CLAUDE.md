@@ -58,10 +58,10 @@ v0.1.1. Code unchanged since the 2026-09-09 performance patch apart from
 the demo. Docs were rewritten from the code in #2. Consumers:
 stormconsole (opt-in `?rfb=storm`, vendored at `29305ab`; noVNC default)
 and stormrdp (git pins). Open: #1 QEMU Extended Key Event (asked for by
-stormrdp), #4–#7 follow-ups from #2, #8 test containers. Deck:
+stormrdp), #4–#7 follow-ups from #2. Test container: `test/` (#8). Deck:
 `docs/presentation.md` (#3).
 
-### Active — #8 test container (2026-09-27)
+### Done — #8 test container (2026-09-27)
 
 stormrfb is a library with nothing of its own on a node (stormview's
 case), so per stormcentral `docs/test-standard.md` the suites run the
@@ -81,10 +81,13 @@ and the real-guest path is #4.
 - [x] sc-build at 6ba5511: short 5/5, medium 14 + 1 skip, long (180 s)
       34 waves + trend, all exit 0; podman image 860 KB, `/test short` in
       it as uid 65532 with no network: 5/5; workspace 25 tests
-- [ ] `stormcentral test run stormrfb short` (run d105522374 on C2NR0Q2);
-      stormcentral#56 breaks the runner's image step for every component
+- [x] `stormcentral test run stormrfb short` tried: run d105522374 errored
+      before the image step, C2NR0Q2's apiserver never answered /readyz
+      (stormview and stormcoredns too), filed stormcentral#63; the image
+      step is also broken for everyone (stormcentral#56), and /results is
+      not collected yet (stormcentral#57). Rerun when those are fixed
 - [x] README/VALIDATION/CHANGELOG
-- [ ] close #8 and #9 (sc-build's lockfile failure)
+- [x] closed #8 and #9 (sc-build's lockfile failure)
 
 ### Done — #3 presentation (2026-09-27)
 
