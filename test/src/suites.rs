@@ -13,6 +13,8 @@ use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use stormrfb::*;
+// The crate exports a one-parameter `Result`; these functions return `Result<T, String>`.
+use std::result::Result;
 use stormrfb_client::{Client, Event as C, Framebuffer};
 use stormrfb_server::{Event as S, Security};
 
