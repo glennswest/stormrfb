@@ -672,7 +672,7 @@ pub const SESSION_BYTES: u64 = 24 << 20;
 pub fn parallel(n: usize, frames: u32, seed: u32) -> Result<Vec<f64>, String> {
     let handles: Vec<_> = (0..n)
         .map(|i| {
-            std::thread::spawn(move || {
+            std::thread::spawn(move || -> Result<f64, String> {
                 let mut scene = Scene::new(1280, 720, frames);
                 scene.seed = seed.wrapping_add(i as u32);
                 let run = session::run(&scene, Security::None, Limits::default(), vec![], |s| {
