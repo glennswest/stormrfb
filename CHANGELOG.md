@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### 2026-09-27
+- **docs:** `docs/presentation.md`, a 12-slide Marp deck on purpose and functionality drawn from the code: problem, place in stormcentral's graph, architecture, codec/client/server features, Limits, tests and measurements, interfaces, shipping, planned work and status; linked from README and `docs/presentations/README.md` (#3)
+
 ### 2026-09-26
 - **chore:** verified #2 with `sc-build 'cargo test --workspace --locked'` at 86f86d9 (25 tests passed); work plan updated
 

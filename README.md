@@ -209,6 +209,8 @@ pin.
 
 ## Documents
 
+- [docs/presentation.md](docs/presentation.md): a 12-slide Marp deck on
+  purpose and functionality (`npx @marp-team/marp-cli docs/presentation.md`).
 - [docs/DESIGN.md](docs/DESIGN.md): scope, architecture, decisions and
   phasing. Parts marked *design* are not built.
 - [docs/VALIDATION.md](docs/VALIDATION.md): what was validated on

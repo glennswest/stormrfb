@@ -62,13 +62,13 @@ stormrdp), #3 presentation, #4–#7 follow-ups from #2, #8 test containers.
 
 ### Active — #3 presentation (2026-09-27)
 
-- [ ] `docs/presentation.md`: Marp deck, 8–15 slides, every claim from
+- [x] `docs/presentation.md`: Marp deck, 8–15 slides, every claim from
       the code/README (the 17-slide pptx in `docs/presentations/` stays as
       the 2026-09-09 project review)
-- [ ] Graph slide matches `stormcentral check`: stormconsole → stormrfb;
+- [x] Graph slide matches `stormcentral check`: stormconsole → stormrfb;
       stormrdp's code pins stormrfb but the graph lists only stormvm —
-      file that on stormcentral, do not edit it
-- [ ] Link from README and docs/presentations/README; CHANGELOG
+      filed as stormcentral#54
+- [x] Link from README and docs/presentations/README; CHANGELOG
 - [ ] sc-build, then close #3
 
 ### Done — #2 docs from the code (2026-09-24, closed 2026-09-26)

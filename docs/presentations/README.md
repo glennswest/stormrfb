@@ -1,5 +1,9 @@
 # Project review presentation
 
+The short, current deck on purpose and functionality is
+[`../presentation.md`](../presentation.md) (Marp). This directory holds the
+longer 2026-09-09 project review.
+
 `stormrfb-project-review.pptx` is a 17-slide, private project review of v0.1.1.
 It covers project purpose, RFB/RGBA/damage terminology, architecture, elapsed time, recorded tokens, difficult
 implementation details, testing diagrams, first results, optimization and the
