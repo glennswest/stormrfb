@@ -61,6 +61,16 @@ and stormrdp (git pins). Open: #1 QEMU Extended Key Event (asked for by
 stormrdp), #4–#7 follow-ups from #2. Test container: `test/` (#8). Deck:
 `docs/presentation.md` (#3).
 
+### Active — docs refresh since 2026-09-18 (2026-09-27)
+
+Only doc comments and `test/` changed in code since 2026-09-18.
+- [ ] README: the test image's env configuration, its loopback sockets,
+      how it ships (runner, stormcentral#56/#63/#64), docs list
+- [ ] DESIGN phase 2 state: the in-process 1080p measurement
+- [ ] presentation: tests, interfaces, shipping and status slides
+- [ ] CLAUDE.md: status; drop the stale clippy/rustfmt line (#11)
+- [ ] sc-build clippy/fmt (README offers them), cargo test; issues for gaps
+
 ### Done — #8 test container (2026-09-27)
 
 stormrfb is a library with nothing of its own on a node (stormview's
