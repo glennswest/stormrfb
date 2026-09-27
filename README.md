@@ -8,7 +8,9 @@ session that turns a framebuffer and damage into updates, and a WASM/canvas
 binding for the browser. Private, version **0.1.1**, nothing published.
 
 It is a set of crates, not a service: **no daemon, no ports, no config
-file, no health or metrics endpoints.** The application that links it owns
+file, no health or metrics endpoints.** The one runnable thing it ships is
+a test image ([`test/`](test/README.md)), which only talks to itself over
+the pod's loopback. The application that links it owns
 the transport, authorization, logging and metrics.
 
 ## Why it exists
@@ -56,7 +58,7 @@ Every crate has `publish = false`. Rust edition 2024, `rust-version = 1.85`.
 `ENCODINGS`, the list the client advertises, in preference order, is
 `ZRLE, Hextile, CopyRect, Raw, Cursor, DesktopSize, LastRect`.
 
-### Limits: the only configuration
+### Limits: the crates' only configuration
 
 Every decoder and encoder takes a `stormrfb::Limits`. `Limits::default()`:
 
@@ -178,10 +180,27 @@ The same applies to the browser, noVNC-differential and harness checks in
 `tools/validate.sh`, which need Playwright, noVNC 1.7.0 and Xvfb, and to
 fuzzing (`cargo +nightly fuzz run decoder`). Those were run on 2026-09-09.
 See [docs/VALIDATION.md](docs/VALIDATION.md) for what they need.
+Installing them for the build user is stormcentral#64.
 
 Demo: `node tools/demo-server.mjs` serves `web/demo/` on
-**127.0.0.1:8765** (`PORT` overrides it). This is the only listening socket
-anything in this repo opens. It needs a built `web/pkg/`.
+**127.0.0.1:8765** (`PORT` overrides it). It needs a built `web/pkg/`.
+The only other listening sockets anything in this repo opens are the test
+binary's ephemeral `127.0.0.1:0` ports, one per session, inside its pod.
+
+### Test container configuration
+
+`/test <suite>` reads only these environment variables
+(`test/src/env.rs`, `test/src/report.rs`). The runner's other `STORM_*`
+variables (`STORM_NODE`, `STORM_NAMESPACE`, `STORM_RUN_ID`, …) are accepted
+and ignored, because the suites create nothing and use no API.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `STORM_SUITE` | none | the suite, when there is no argument: `short`, `medium` or `long` |
+| `STORM_TIMEOUT` | 120 / 1800 / 28800 s by suite | the run's budget. `medium` gives `mutated-fixtures` a sixth of it (at most 300 s). `long` stops its waves a tenth before the end (at most 300 s) |
+| `STORMRFB_TARGET` | unset | `host:port` of a real RFB 3.8 server for `medium`'s `real-server`. Unset, that test is `skip` |
+| `STORMRFB_PASSWORD` | unset | that server's VNC password |
+| `STORMRFB_RESULTS` | `/results` | where `results.jsonl` and `long`'s `waves.jsonl` are written. If it is not writable, stdout is the only record |
 
 ## How it ships
 
@@ -199,6 +218,15 @@ through its consumers:
 Changing this repo changes nothing deployed until one of those updates its
 pin.
 
+**The test image** is built by stormcentral's test runner from `test/`
+(`test/build.sh`, then `podman build -f test/Containerfile .`) as
+`test-stormrfb-<suite>:<commit12>` in the test machine's sbregistry, and run
+as a Job (`test/stormrfb-test.yaml`). It has not yet completed a run through
+the runner: the runner's image step fails for every component
+(stormcentral#56), and the test machine's apiserver does not come up
+(stormcentral#63). The same image passes under `sc-build` and rootless
+podman (docs/VALIDATION.md). #10 tracks re-running it.
+
 ## Who uses it
 
 - **stormconsole** (`web/src/lib/views/VmDetail.svelte`): a switch on the VM
@@ -206,7 +234,8 @@ pin.
   the default** until a Linux guest and a Windows installer have been driven
   through the relay. Both clients dial the same door,
   `/api/plugins/vm/console/{ns}/{name}/vnc`. That route is a websocket relay
-  to stormvm `:9095 /api/v1/vms/{id}/console/vnc`, and it passes RFB through
+  to stormvm `:9095 /api/v1/vms/{ns}/{name}/console/vnc`, after minting a
+  one-attach token at `…/console/vnc/token`, and it passes RFB through
   untouched.
 - **stormrdp**: `stormrdp-host-rfb` bridges VNC servers to RDP with
   `stormrfb-client`. `tools/bench` drives `stormrfb-server`. It maps RDP
@@ -219,6 +248,8 @@ pin.
 
 - [docs/presentation.md](docs/presentation.md): a 12-slide Marp deck on
   purpose and functionality (`npx @marp-team/marp-cli docs/presentation.md`).
+- [test/README.md](test/README.md): the stormcos test container, its
+  suites and output.
 - [docs/DESIGN.md](docs/DESIGN.md): scope, architecture, decisions and
   phasing. Parts marked *design* are not built.
 - [docs/VALIDATION.md](docs/VALIDATION.md): what was validated on

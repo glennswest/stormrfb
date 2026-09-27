@@ -147,6 +147,9 @@ except `Incomplete` is terminal.
 hostile lengths, tile subencodings, server sessions, and replays of
 recorded QEMU and TigerVNC ZRLE fixtures against independently captured
 pixel hashes. It passed through `sc-build` at `86f86d9` on 2026-09-26.
+The stormcos **test image** (`test/`, `/test short|medium|long`) runs the
+server and client against each other over the pod's loopback. On dev on
+2026-09-27 it measured a 640×480 window moving on 1080p at 66 fps.
 
 **Measured** on 2026-09-09 (x86_64 dev VM, Node 22, QEMU 720×400 fixture):
 
@@ -164,8 +167,8 @@ WASM + JS package: 106,798 bytes, 44,718 gzipped (docs/PERFORMANCE.md).
 | | |
 |---|---|
 | **API** | Rust crates: `stormrfb`, `stormrfb-client`, `stormrfb-server`. JS: `@stormrfb/client` `connect()`. WASM: `BrowserClient` |
-| **Config** | `stormrfb::Limits` only. The WASM binding uses `Limits::default()` |
-| **Ports** | none. The only socket in the repo is the dev demo, `node tools/demo-server.mjs` on 127.0.0.1:8765 (`PORT`) |
+| **Config** | `stormrfb::Limits` only. The WASM binding uses `Limits::default()`. The test image reads `STORM_TIMEOUT` and optionally `STORMRFB_TARGET` |
+| **Ports** | none. The dev demo uses 127.0.0.1:8765 (`PORT`), and the test image uses ephemeral loopback ports inside its pod |
 | **Health / metrics** | none. That is the linking application's job |
 | **CLI** | none shipped. A dev-only native harness: `cargo run -p stormrfb-client --example viewer --features native-harness -- HOST:PORT` |
 
@@ -185,9 +188,12 @@ All crates are `publish = false`, edition 2024, rust-version 1.85.
 - **To stormrdp:** stormrdp bumps its git `rev` pin.
 - **Updating** means a consumer bumps its pin. Changing this repo changes
   nothing deployed until then.
+- **Test image:** stormcentral's runner builds `test/` into
+  `test-stormrfb-<suite>:<commit12>` and runs it as a Job. It has not yet
+  completed a run there (stormcentral#56, #63), so #10 tracks re-running it.
 - Not available through `sc-build` today: the `wasm32` target,
-  `wasm-bindgen`, nightly and cargo-fuzz, and the Playwright/noVNC checks.
-  Those last ran on 2026-09-09 (docs/VALIDATION.md).
+  `wasm-bindgen`, nightly and cargo-fuzz, and the Playwright/noVNC checks
+  (stormcentral#64). Those last ran on 2026-09-09 (docs/VALIDATION.md).
 
 ---
 
@@ -209,15 +215,18 @@ secured a layer up), and a shipped native viewer (DESIGN.md decision 3).
 
 ## Status
 
-- **v0.1.1.** The code is unchanged since the 2026-09-09 performance patch.
-  The docs were rewritten from the code in #2 (closed 2026-09-26).
+- **v0.1.1.** The crate code is unchanged since the 2026-09-09 performance
+  patch. The docs were rewritten from the code (#2) and refreshed on
+  2026-09-27. The stormcos test image landed in #8.
 - **Consumers:** stormconsole (opt-in, noVNC default) and stormrdp, both at
   `29305ab`, which has the same crate code as `main`.
 - **Open issues that matter:**
   - #4 decides whether stormconsole can drop noVNC
   - #1 unblocks raw scancodes for stormrdp
-  - #8 adds short/medium/long test containers per the stormcos test
-    standard (P1). There is no `test/` yet
+  - #10 re-runs the test image through stormcentral's runner once
+    stormcentral#56 and #63 are fixed
+  - stormcentral#64 installs the WASM and fuzz tools on the build box,
+    without which the browser package can't be rebuilt
   - stormcentral#54 adds the missing stormrdp → stormrfb graph edge
 - More: [README.md](../README.md), [DESIGN.md](DESIGN.md),
   [VALIDATION.md](VALIDATION.md), [PERFORMANCE.md](PERFORMANCE.md).

@@ -217,7 +217,10 @@ the exit (real guests through the relay, noVNC removed) is **not met**.
 from virtio-gpu, produces updates. **Measured:** frames per second and
 bytes per second for a moving window on a 1080p guest. *State:*
 `stormrfb-server` is built and tested; the virtio-gpu/vhost-user side is
-stormvm's and does not exist, so the measurement has not been taken.
+stormvm's and does not exist, so the guest measurement has not been taken.
+The protocol half has: the test container's `moving-window-1080p` measured
+66 fps and 8.6 MB/s for a 640×480 window on 1920×1080, with server and
+client in one pod (docs/VALIDATION.md, 2026-09-27).
 
 **Phase 3 — deferred native viewer.** Decision 3 supersedes the original
 viewer milestone. Only the development harness is committed scope.

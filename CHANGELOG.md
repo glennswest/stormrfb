@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### 2026-09-27 (docs refresh)
+- **docs:** refresh from the code since 2026-09-18. README: the test image's environment configuration (`STORM_TIMEOUT`, `STORMRFB_TARGET`, `STORMRFB_PASSWORD`, `STORMRFB_RESULTS`, with defaults) and loopback sockets, how the test image ships (stormcentral's runner; not yet run there, #10), stormvm's console door is `/api/v1/vms/{ns}/{name}/console/vnc` after a token mint (was `{id}`), build-box tools are stormcentral#64. DESIGN: the phase 2 state records the in-process 1080p measurement. Presentation: tests, interfaces, shipping and status slides current. CLAUDE.md: status and open issues; the stale "build box lacks clippy/rustfmt" line removed (#11)
+
 ### 2026-09-27 (test container)
 - **test:** `test/`, the stormcos test image per stormcentral `docs/test-standard.md`: static musl `stormrfb-test` (its own workspace and lock), `build.sh`, `Containerfile` (FROM scratch, `/test short|medium|long`), `stormrfb-test.yaml` (Job and metadata: `requires: []`, no API, optional `STORMRFB_TARGET`). short: loopback server↔client session, VNC auth, fixture replays, Raw/Hextile/ZRLE × four pixel formats; medium: input, resize, one-byte fragmentation, hostile bytes both ways, mutated fixtures, small limits, concurrent sessions, 1080p moving window, optional real server; long: waves of concurrent sessions sized from the pod's cgroup, failing on slowdown or RSS/thread/fd residue (#8)
 - **fix:** `test/Cargo.lock` committed so `test/build.sh --locked` builds (#9)

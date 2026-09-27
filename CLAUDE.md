@@ -33,11 +33,16 @@ The build user has no `wasm32-unknown-unknown` target, no nightly toolchain
 or cargo-fuzz, and no `wasm-bindgen` on `PATH`. So the WASM package, the
 browser/noVNC checks in `tools/validate.sh` and fuzzing cannot be rerun
 today. Installing them is a host change for the owner, not something to
-work around.
+work around (stormcentral#64). clippy and rustfmt are there: workspace
+clippy `-D warnings` and `fmt --check` pass (2026-09-27). The `test/`
+crate does not yet (#12).
 
 **Shipping:** no golden of its own. stormconsole vendors the built web
 package (`web/src/lib/vendor/stormrfb/VERSION`), and stormrdp pins the
 crates by git rev. Consumers pick up a change only by bumping their pin.
+The stormcos test image (`test/`, `/test short|medium|long`) is built and
+run by stormcentral's test runner, and has not completed a run there yet
+(#10: stormcentral#56, #63).
 
 ## Conventions
 
@@ -54,22 +59,27 @@ crates by git rev. Consumers pick up a change only by bumping their pin.
 
 ### Status (2026-09-27)
 
-v0.1.1. Code unchanged since the 2026-09-09 performance patch apart from
-the demo. Docs were rewritten from the code in #2. Consumers:
-stormconsole (opt-in `?rfb=storm`, vendored at `29305ab`; noVNC default)
-and stormrdp (git pins). Open: #1 QEMU Extended Key Event (asked for by
-stormrdp), #4–#7 follow-ups from #2. Test container: `test/` (#8). Deck:
-`docs/presentation.md` (#3).
+v0.1.1. Crate code unchanged since the 2026-09-09 performance patch
+(since then only doc comments, the demo and `test/`). Docs rewritten from
+the code in #2 and refreshed 2026-09-27. Consumers: stormconsole (opt-in
+`?rfb=storm`, vendored at `29305ab`; noVNC default) and stormrdp (git pins
+at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
+(#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
+overflow, #12 test-crate lint.
 
-### Active — docs refresh since 2026-09-18 (2026-09-27)
+### Nearly done — docs refresh since 2026-09-18 (2026-09-27)
 
 Only doc comments and `test/` changed in code since 2026-09-18.
-- [ ] README: the test image's env configuration, its loopback sockets,
-      how it ships (runner, stormcentral#56/#63/#64), docs list
-- [ ] DESIGN phase 2 state: the in-process 1080p measurement
-- [ ] presentation: tests, interfaces, shipping and status slides
-- [ ] CLAUDE.md: status; drop the stale clippy/rustfmt line (#11)
-- [ ] sc-build clippy/fmt (README offers them), cargo test; issues for gaps
+- [x] README: the test image's env configuration, its loopback sockets,
+      how it ships (runner, stormcentral#56/#63/#64), docs list; stormvm
+      door is `{ns}/{name}` plus a token (checked in both repos' code)
+- [x] DESIGN phase 2 state: the in-process 1080p measurement
+- [x] presentation: tests, interfaces, shipping and status slides
+- [x] CLAUDE.md: status; dropped the stale clippy/rustfmt line (#11)
+- [x] sc-build at 1392373: workspace clippy -D warnings and fmt pass;
+      test crate does not (filed #12); stormconsole's console.rs comment
+      says `{id}` (filed stormconsole#39)
+- [ ] sc-build cargo test at the pushed commit
 
 ### Done — #8 test container (2026-09-27)
 
@@ -124,7 +134,6 @@ and the real-guest path is #4.
 - [x] `sc-build` rustdoc with `-D warnings` at c9bf72f passed
 - [x] `sc-build 'cargo test --workspace --locked'` at 86f86d9 passed
       (2026-09-26, 25 tests, exit 0, no sc-build script errors); #2 closed
-- Build box lacks rustfmt and clippy for the build user
 
 ### Phase 0 — definition (2026-09-09)
 
@@ -185,6 +194,8 @@ Commit and push each increment before testing on dev. Keep packages private.
 - [x] `stormrfb-server`: framebuffer + damage → update messages
 - [ ] vhost-user integration is stormvm's; this supplies the protocol
 - [ ] **Measure** fps and bytes/s for a moving window on a 1080p guest
+      (in-process protocol half measured 2026-09-27: 66 fps, 8.6 MB/s,
+      docs/VALIDATION.md; the guest waits on stormvm#1)
 
 ### Phase 3 — the native viewer
 
