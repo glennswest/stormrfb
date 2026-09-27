@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### 2026-09-27 (test container)
+- **test:** `test/`, the stormcos test image per stormcentral `docs/test-standard.md`: static musl `stormrfb-test` (its own workspace and lock), `build.sh`, `Containerfile` (FROM scratch, `/test short|medium|long`), `stormrfb-test.yaml` (Job and metadata: `requires: []`, no API, optional `STORMRFB_TARGET`). short: loopback server↔client session, VNC auth, fixture replays, Raw/Hextile/ZRLE × four pixel formats; medium: input, resize, one-byte fragmentation, hostile bytes both ways, mutated fixtures, small limits, concurrent sessions, 1080p moving window, optional real server; long: waves of concurrent sessions sized from the pod's cgroup, failing on slowdown or RSS/thread/fd residue (#8)
+- **fix:** `test/Cargo.lock` committed so `test/build.sh --locked` builds (#9)
+- **docs:** README, VALIDATION (suite results and the in-process 1080p moving-window measurement: 66 fps, 8.6 MB/s on dev, 8 vCPUs), test/README (#8)
+
 ### 2026-09-27
 - **chore:** verified #3: `sc-build` cargo test (25 passed) and Marp render (12 slides) at a5b5f73
 - **docs:** `docs/presentation.md`, a 12-slide Marp deck on purpose and functionality drawn from the code: problem, place in stormcentral's graph, architecture, codec/client/server features, Limits, tests and measurements, interfaces, shipping, planned work and status; linked from README and `docs/presentations/README.md` (#3)

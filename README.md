@@ -163,6 +163,14 @@ lengths, tile subencodings, server sessions, and replays of the two recorded
 fixtures (`fixtures/qemu-zrle.rfb`, `fixtures/tigervnc-zrle.rfb`) against
 independently captured pixel hashes.
 
+**The stormcos test container** is in [`test/`](test/README.md), with
+`short`, `medium` and `long` suites in one image, `/test <suite>`, per
+stormcentral's test standard. stormrfb has nothing of its own on a node, so
+the suites run this commit's server and client against each other over
+loopback TCP in the pod, and check every frame pixel for pixel. The pod
+needs no API access and no hardware. `test/build.sh` builds the static
+binary, and `test/Containerfile` packages it `FROM scratch`.
+
 **Not available through `sc-build` today:** the WASM package
 (`tools/build-web.sh` needs the `wasm32-unknown-unknown` target, which is
 not installed for the build user, and `wasm-bindgen` 0.2.128 on `PATH`).

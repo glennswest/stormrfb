@@ -129,6 +129,25 @@ They never attach to an existing guest. Updating a fixture also requires
 reviewing its independent metadata and updating the expected checksum in
 `crates/stormrfb-client/tests/qemu.rs`.
 
+## Test container — 2026-09-27
+
+`test/` holds the stormcos test image (#8). It has short, medium and long
+suites, all run through `sc-build` on dev.g8.lo (8 vCPUs, 13 GiB free) at
+`6ba5511`. See [test/README.md](../test/README.md).
+
+| suite | result | notable |
+|---|---|---|
+| short | 5 pass, exit 0, < 1 s | 640x480 loopback session 1.78 ms/frame; Raw/Hextile/ZRLE × four pixel formats exact |
+| medium | 14 pass, 1 skip (`real-server`: no `STORMRFB_TARGET`), exit 0 | 200,000 mutated fixture streams in 41 s, no panic; 16 concurrent 1280x720 sessions exact; hostile bytes rejected both ways |
+| long (`STORM_TIMEOUT=180`) | 34 waves + trend pass, exit 0 | 8/16/24 sessions: 5.1–6.5 / 11.8–13.7 / 18.1–19.0 ms/frame with no drift; after every drain 1 thread, 5 fds, RSS 880–1004 KiB |
+
+**Moving window on 1080p, in-process** (medium `moving-window-1080p`,
+2026-09-27, dev.g8.lo, 8 vCPUs). A 640×480 window moves across 1920×1080.
+One `stormrfb-server` and one `stormrfb-client` share the machine over
+loopback TCP, with ZRLE: 300 frames exact in 4.57 s, which is **66 fps,
+8.6 MB/s and 131,640 bytes/frame**. This is the protocol half of the phase 2
+measurement. A guest behind stormvm's display is still pending stormvm#1.
+
 ## Remaining phase exits and limits
 
 - A Windows installer and Linux guest through the actual stormconsole relay,
@@ -138,6 +157,7 @@ reviewing its independent metadata and updating the expected checksum in
   until that integration gate passes.
 - stormvm owns the virtio-gpu/vhost-user integration. The real 1080p moving
   guest server fps/bytes-per-second measurement is pending that integration.
+  The in-process number above is the library's part of it.
 - RFB 3.3/3.7, indexed-colour pixel formats, ExtendedDesktopSize client resize,
   ContinuousUpdates/Fence, Tight/JPEG, IME/composition and a shipped native
   viewer are not implemented. The native harness intentionally has mouse
