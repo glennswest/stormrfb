@@ -52,15 +52,16 @@ crates by git rev. Consumers pick up a change only by bumping their pin.
 
 ## Work plan
 
-### Status (2026-09-26)
+### Status (2026-09-27)
 
 v0.1.1. Code unchanged since the 2026-09-09 performance patch apart from
 the demo. Docs were rewritten from the code in #2. Consumers:
 stormconsole (opt-in `?rfb=storm`, vendored at `29305ab`; noVNC default)
 and stormrdp (git pins). Open: #1 QEMU Extended Key Event (asked for by
-stormrdp), #3 presentation, #4–#7 follow-ups from #2, #8 test containers.
+stormrdp), #4–#7 follow-ups from #2, #8 test containers. Deck:
+`docs/presentation.md` (#3).
 
-### Active — #3 presentation (2026-09-27)
+### Done — #3 presentation (2026-09-27)
 
 - [x] `docs/presentation.md`: Marp deck, 8–15 slides, every claim from
       the code/README (the 17-slide pptx in `docs/presentations/` stays as
@@ -69,7 +70,9 @@ stormrdp), #3 presentation, #4–#7 follow-ups from #2, #8 test containers.
       stormrdp's code pins stormrfb but the graph lists only stormvm —
       filed as stormcentral#54
 - [x] Link from README and docs/presentations/README; CHANGELOG
-- [ ] sc-build, then close #3
+- [x] sc-build at a5b5f73: 25 tests passed; Marp renders 12 slides on
+      dev (`npx @marp-team/marp-cli`); #3 closed. Slide layout (overflow)
+      not inspected visually: no browser on the build box
 
 ### Done — #2 docs from the code (2026-09-24, closed 2026-09-26)
 

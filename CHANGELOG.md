@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### 2026-09-27
+- **chore:** verified #3: `sc-build` cargo test (25 passed) and Marp render (12 slides) at a5b5f73
 - **docs:** `docs/presentation.md`, a 12-slide Marp deck on purpose and functionality drawn from the code: problem, place in stormcentral's graph, architecture, codec/client/server features, Limits, tests and measurements, interfaces, shipping, planned work and status; linked from README and `docs/presentations/README.md` (#3)
 
 ### 2026-09-26
