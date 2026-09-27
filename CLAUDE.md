@@ -61,6 +61,28 @@ and stormrdp (git pins). Open: #1 QEMU Extended Key Event (asked for by
 stormrdp), #4–#7 follow-ups from #2, #8 test containers. Deck:
 `docs/presentation.md` (#3).
 
+### Active — #8 test container (2026-09-27)
+
+stormrfb is a library with nothing of its own on a node (stormview's
+case), so per stormcentral `docs/test-standard.md` the suites run the
+commit's own server and client against each other over loopback TCP in the
+pod, and say so. A real RFB server is optional (`STORMRFB_TARGET`), skip
+when unset. stormvm's console door mints tokens only from node loopback,
+and the real-guest path is #4.
+
+- [ ] `test/`: own workspace (`stormrfb-test`), `build.sh` (static musl),
+      `Containerfile` (FROM scratch, `/test <suite>`), `stormrfb-test.yaml`
+- [ ] short: loopback session, VNC auth, fixture replays, encoding × pixel
+      format matrix
+- [ ] medium: + input, resize, fragmentation, hostile input, small limits,
+      concurrent sessions, 1080p moving window, optional real server
+- [ ] long: waves of concurrent sessions sized from cgroup CPU/memory;
+      per-wave ms/frame, RSS, fds, threads; regression = failure
+- [ ] sc-build: workspace tests + `test/build.sh` + run short/medium (and
+      a shortened long) on dev; `stormcentral test run` if it accepts a
+      library component
+- [ ] README/VALIDATION/CHANGELOG; close #8
+
 ### Done — #3 presentation (2026-09-27)
 
 - [x] `docs/presentation.md`: Marp deck, 8–15 slides, every claim from
