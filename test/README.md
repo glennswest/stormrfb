@@ -47,7 +47,8 @@ session is budgeted at 24 MiB, and at most a quarter of memory is used.
 As the standard asks, stdout has one JSON object per test,
 `{"test","status","ms","detail"}`, then `{"summary":{"pass","fail","skip"}}`.
 The same lines go to `/results/results.jsonl`. `long` also writes one line
-per wave to `/results/waves.jsonl`. Set `STORMRFB_RESULTS` to use another
+per wave to `/results/waves.jsonl`. stormcentral's runner does not collect `/results` yet
+(stormcentral#57). Set `STORMRFB_RESULTS` to use another
 directory. The exit code is 0 when everything passed, 1 when a test failed,
 and 2 when the suite could not run (no loopback, or `STORMRFB_TARGET`
 unreachable).

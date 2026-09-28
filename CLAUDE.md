@@ -80,6 +80,9 @@ Only doc comments and `test/` changed in code since 2026-09-18.
       test crate does not (filed #12); stormconsole's console.rs comment
       says `{id}` (filed stormconsole#39)
 - [x] sc-build at 13581c5: 25 tests pass; deck renders 12 slides
+- [x] Re-check (2026-09-27, after issue validation): no code change since
+      13581c5; Limits/ENCODINGS/test env match; added stormcentral#57
+      (`/results` not collected) to README and test/README
 
 ### Done — #8 test container (2026-09-27)
 

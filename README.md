@@ -224,7 +224,9 @@ pin.
 as a Job (`test/stormrfb-test.yaml`). It has not yet completed a run through
 the runner: the runner's image step fails for every component
 (stormcentral#56), and the test machine's apiserver does not come up
-(stormcentral#63). The same image passes under `sc-build` and rootless
+(stormcentral#63). Once it runs, the runner does not yet collect `/results`
+(stormcentral#57), so `long`'s per-wave `waves.jsonl` stays in the pod;
+the JSON lines on stdout are what it reports. The same image passes under `sc-build` and rootless
 podman (docs/VALIDATION.md). #10 tracks re-running it.
 
 ## Who uses it

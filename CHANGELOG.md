@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### 2026-09-27 (docs refresh, re-check)
+- **docs:** re-checked README, docs/ and CLAUDE.md against the code: no code change since 13581c5 and `Limits`, `ENCODINGS` and the test image's environment match. README and test/README now say that stormcentral's runner does not collect `/results` yet (stormcentral#57), so `long`'s `waves.jsonl` is not reported through it
+
 ### 2026-09-27 (docs refresh)
 - **docs:** refresh from the code since 2026-09-18. README: the test image's environment configuration (`STORM_TIMEOUT`, `STORMRFB_TARGET`, `STORMRFB_PASSWORD`, `STORMRFB_RESULTS`, with defaults) and loopback sockets, how the test image ships (stormcentral's runner; not yet run there, #10), stormvm's console door is `/api/v1/vms/{ns}/{name}/console/vnc` after a token mint (was `{id}`), build-box tools are stormcentral#64. DESIGN: the phase 2 state records the in-process 1080p measurement. Presentation: tests, interfaces, shipping and status slides current. CLAUDE.md: status and open issues; the stale "build box lacks clippy/rustfmt" line removed (#11)
 
