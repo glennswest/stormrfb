@@ -150,27 +150,32 @@ function instrument() {
       }
     }
   }
-  class Counted extends Native {
-    constructor(url, protocols) {
-      super(url, protocols)
-      this.__vnc = String(url).includes('/vnc')
-    }
-    send(d) {
-      const b = this.__vnc && view(d)
-      if (b && b.length === 10 && b[0] === 3) s.fbur++
-      return super.send(d)
-    }
-    set onmessage(fn) {
-      super.onmessage = this.__vnc ? wrap(fn) : fn
-    }
-    get onmessage() {
-      return super.onmessage
-    }
-    addEventListener(t, fn, o) {
-      return super.addEventListener(t, t === 'message' && this.__vnc ? wrap(fn) : fn, o)
-    }
+  // Patched on WebSocket.prototype, not subclassed: noVNC 1.7 checks a
+  // channel's own and immediate-prototype properties for `close` and the
+  // rest, so a subclass reads to it as a channel missing them.
+  const P = Native.prototype
+  const isVnc = (ws) => String(ws.url).includes('/vnc')
+  const send = P.send
+  P.send = function (d) {
+    const b = isVnc(this) && view(d)
+    if (b && b.length === 10 && b[0] === 3) s.fbur++
+    return send.call(this, d)
   }
-  window.WebSocket = Counted
+  const on = Object.getOwnPropertyDescriptor(P, 'onmessage')
+  Object.defineProperty(P, 'onmessage', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      return on.get.call(this)
+    },
+    set(fn) {
+      on.set.call(this, isVnc(this) ? wrap(fn) : fn)
+    },
+  })
+  const add = P.addEventListener
+  P.addEventListener = function (t, fn, o) {
+    return add.call(this, t, t === 'message' && isVnc(this) ? wrap(fn) : fn, o)
+  }
 }
 
 const CANVAS = { storm: 'canvas.fb', novnc: 'div.fb canvas' }
