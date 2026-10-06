@@ -206,7 +206,7 @@ enabled = false
 enabled = false
 EOF
 mkdir -p "$W/c"
-(cd "$W/stormconsole" && "$CONSOLE_BIN" --config "$W/c.toml" > "$W/c.log" 2>&1 &)
+(cd "$W/stormconsole" && exec "$CONSOLE_BIN" --config "$W/c.toml") > "$W/c.log" 2>&1 &
 wait_for $C/healthz
 sleep 4
 curl -sf "$C/api/plugins/vm/vms/default/alpine" | python3 -c 'import json,sys; print("  console sees alpine, doors:", json.load(sys.stdin).get("console"))'
