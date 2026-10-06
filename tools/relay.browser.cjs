@@ -362,22 +362,50 @@ async function typeAt(p, text) {
     console.log(thumb(first))
     // Next, the way a person without a mouse would press it: Enter (the
     // default button), then its mnemonic Alt+N, then Tab to it and Enter.
+    // Setup can draw before it takes input, so it is given a while first.
+    // If stormrfb's keys do nothing, the same keys through noVNC and then
+    // through QMP (no VNC at all) say whether it is the client or the guest.
     let how = null
+    let other = null
+    await sleep(20000)
+    const moved = async () => differ(await screendump('windows'), first) > MOVED
+    const tries = [['Enter'], ['Alt+n'], ['Tab', 'Tab', 'Tab', 'Enter']]
     await phase('windows Setup: keys to the next page', wp, async () => {
-      for (const keys of [['Enter'], ['Alt+n'], ['Tab', 'Tab', 'Tab', 'Enter']]) {
+      for (const keys of tries) {
         await w.storm.page.locator(CANVAS.storm).focus()
         for (const k of keys) {
           await w.storm.page.keyboard.press(k)
           await sleep(300)
         }
         await sleep(5000)
-        if (differ(await screendump('windows'), first) > MOVED) {
+        if (await moved()) {
           how = keys.join(' ')
           break
         }
       }
       return settle('windows', { gap: 2000, timeout: 60000, ok: (d) => d.lit > 0.5 })
     })
+    if (!how) {
+      console.log(thumb(await screendump('windows'), 120))
+      await w.novnc.page.locator(CANVAS.novnc).click({ position: { x: 5, y: 5 } })
+      for (const keys of tries) {
+        for (const k of keys) {
+          await w.novnc.page.keyboard.press(k)
+          await sleep(300)
+        }
+        await sleep(5000)
+        if (await moved()) {
+          other = `noVNC: ${keys.join(' ')}`
+          break
+        }
+      }
+      if (!other) {
+        await qmp('windows', { execute: 'send-key', arguments: { keys: [{ type: 'qcode', data: 'ret' }] } })
+        await sleep(5000)
+        other = (await moved()) ? 'QMP send-key ret' : 'nothing: not noVNC, not QMP send-key'
+      }
+      console.log(`  windows: what moved Setup instead: ${other}`)
+    }
     const next = await legible('windows Setup, after the keys', 'windows', wp)
     console.log(thumb(next))
     check(!!how, 'windows: keys typed at stormrfb moved Setup to its next page', how ? `${how}: ${differ(next, first)} pixels changed` : 'no key changed the page')
