@@ -148,13 +148,113 @@ loopback TCP, with ZRLE: 300 frames exact in 4.57 s, which is **66 fps,
 8.6 MB/s and 131,640 bytes/frame**. This is the protocol half of the phase 2
 measurement. A guest behind stormvm's display is still pending stormvm#1.
 
+## Real guests through stormconsole's relay — 2026-10-06 (#4)
+
+`sc-build tools/verify-relay.sh` at `e31cf8a` on dev.g8.lo (Fedora 43,
+16 CPUs, 62 GiB, QEMU 10.1.5, KVM), exit 0, 632 s. One run, nothing kept.
+
+**What runs.** stormconsole `cf2cbbb` (its SPA built by vite, its server)
+and stormvm `4051696` (`stormvm serve`), both built in the job; fastetcd
+v1.2.0 and rustkube v0.15.3 with the KubeVirt CRDs; two qemu guests
+started with the arguments stormvm's qemu driver renders for a framebuffer
+(q35, KVM, OVMF, `-nodefaults`, `virtio-vga`, `-vnc unix:…/vnc.sock`, QMP
+on `control.sock`) and registered as `stormvm start` registers them; and
+headless Chromium (Playwright 1.63.0) on stormconsole's VM page,
+Graphical console tab. The path is the production one:
+
+```
+Chromium ⇄ stormconsole /api/plugins/vm/console/default/<vm>/vnc   (relay)
+         ⇄ stormvm serve /api/v1/vms/default/<vm>/console/vnc     (door, token minted)
+         ⇄ qemu's VNC server on vnc.sock
+```
+
+Not real: no kubelet or stormpump run on the build box, so the script
+plays their part (starts qemu, writes `vm.json` and the VMI status). The
+stormrfb client is the build stormconsole vendors (`29305ab`; its
+`client.js` is this commit's `web/client.js`, and the crates have had only
+doc changes since). noVNC is stormconsole's own 1.7.0. Both clients are
+attached to the **same guest at the same time** before it is unpaused.
+
+**Guests.** Alpine 3.20.3 `virt` ISO (1 GiB, 2 vCPU) and Microsoft's
+Windows Server 2022 evaluation ISO (4 GiB, 2 vCPU), both downloaded per run.
+Both run at 1280×800 (OVMF's GOP mode).
+
+**Legible** is checked as pixels, not by eye: each client's canvas is read
+back and compared with qemu's own `screendump` (QMP) of a settled screen.
+
+| screen | stormrfb | noVNC |
+|---|---|---|
+| Alpine at its login prompt | 100.000% exact | 100.000% exact |
+| Alpine after `ls -lR` scrolled | 100.000% | 100.000% |
+| Alpine after `clear` | 100.000% | 99.998% (the blinking cursor) |
+| Windows Setup, language page | 100.000% | 100.000% |
+| Windows Setup, after Next | 100.000% | 100.000% |
+
+**Driven**, all by keys typed at stormrfb's canvas, through the relay:
+- Alpine: `root` logs in (7,213 pixels change), `ls -lR …` scrolls, and
+  `clear` leaves 0.03% of the screen lit.
+- Windows: the ISO boots only if a key is pressed at "Press any key to boot
+  from CD or DVD", so reaching Setup (24 s after unpausing) is the first
+  proof. On Setup's first page, **Alt+N** (Next's mnemonic) moved it on
+  (30,576 pixels changed). Enter does nothing there because the focus is on
+  the Language list, and Setup ignores keys for a few seconds after it
+  first draws (an earlier run pressed too soon). The run's screenshots are
+  in its log as base64 PNG lines.
+- The pointer was not checked in Windows. stormvm gives a framebuffer VM
+  only q35's relative PS/2 mouse, which is filed as stormvm#76.
+
+**Measured**, per client, on the same session. "Handler" is the time
+inside the socket's `message` handler. For both clients that is decode
+plus canvas paint, done synchronously. "FBUR" counts the
+FramebufferUpdateRequests the client sent, one per completed update, so
+per-FBUR is per frame. Chromium's `performance.now()` resolution is
+0.1 ms, so p50s are coarse.
+
+| phase (seconds) | client | bytes | frames | B/frame | handler ms | ms/frame | p95 ms |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Alpine boot (8.0) | stormrfb | 24,131 | 36 | 670 | 23.8 | 0.661 | 4.2 |
+| | noVNC | 25,765 | 35 | 736 | 18.5 | 0.529 | 1.9 |
+| Alpine `ls -lR` (6.5) | stormrfb | 93,259 | 57 | 1,636 | 23.2 | 0.407 | 3.1 |
+| | noVNC | 96,786 | 65 | 1,489 | 20.7 | 0.318 | 1.8 |
+| Windows boot to Setup (24.1) | stormrfb | 44,238 | 147 | 301 | 39.1 | 0.266 | 0.5 |
+| | noVNC | 50,210 | 151 | 333 | 47.2 | 0.313 | 0.8 |
+| Windows Setup, keys to Next (12.7) | stormrfb | 4,823 | 4 | 1,206 | 1.2 | 0.300 | 0.4 |
+| | noVNC | 4,732 | 4 | 1,183 | 1.6 | 0.400 | 0.6 |
+
+Read honestly: **on live guests the two clients are level.** Bytes are
+within about 10% of each other, and so is total handler time: stormrfb
+spends 0.1 ms/frame more on Alpine's text console and 0.05 less on the
+Windows boot. The 2.7× decode advantage in [PERFORMANCE.md](PERFORMANCE.md)
+is real on its recorded ZRLE replay, but at these frame sizes (a few hundred
+bytes to 2 KB) neither client spends long enough decoding for it to show.
+Earlier runs of the same script varied by guest timing; for example the
+Windows boot window held 131 KB (stormrfb) and 206–220 KB (noVNC) in
+two runs where more of the boot animation fell inside it. Nothing here
+measures a busy 1080p desktop. That needs a desktop guest, which this does
+not have.
+
+**Shipped size**, from stormconsole's own vite build, and what the browser
+actually fetched when the tab opened:
+
+| client | files | bytes | gzip |
+|---|---|---:|---:|
+| stormrfb | `app.wasm` 88,564 + `client.js` 8,161 | 96,725 | 43,042 |
+| noVNC 1.7.0 | `rfb.js` | 181,861 | 54,420 |
+
+stormrfb is 53% of noVNC's chunk uncompressed and 79% gzipped.
+
+**Found on the way:** stormconsole#94, where a read-only viewer's VNC
+relay drops the RFB handshake, so that viewer sees nothing with either
+client (found by reading the code, not reproduced here). Also stormvm#76.
+
 ## Remaining phase exits and limits
 
-- A Windows installer and Linux guest through the actual stormconsole relay,
-  with browser performance and production chunk measurements, have not been
-  validated. Since 2026-09-22, stormconsole vendors this package (at
-  `29305ab`) as an opt-in client (`?rfb=storm`). noVNC stays the default
-  until that integration gate passes.
+- The real-guest part of the phase 1 exit passed on 2026-10-06 (above): a
+  Linux guest and a Windows installer are legible and driven through
+  stormconsole's relay, with measurements. Making stormrfb the default and
+  removing `@novnc/novnc` is stormconsole's change (stormconsole#99). Until
+  it lands, stormconsole offers stormrfb behind `?rfb=storm` (vendored at
+  `29305ab`).
 - stormvm owns the virtio-gpu/vhost-user integration. The real 1080p moving
   guest server fps/bytes-per-second measurement is pending that integration.
   The in-process number above is the library's part of it.
