@@ -104,7 +104,11 @@ impl Session {
         self.key(true, keysym, keycode);
         self.key(false, keysym, keycode);
         if shift {
-            self.key(false, if keycode.is_some() { 0 } else { 0xffe1 }, shift_code);
+            self.key(
+                false,
+                if keycode.is_some() { 0 } else { 0xffe1 },
+                shift_code,
+            );
         }
     }
 }

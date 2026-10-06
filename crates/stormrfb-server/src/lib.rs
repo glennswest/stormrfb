@@ -18,12 +18,25 @@ pub enum Security {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     Send(Vec<u8>),
-    Ready { shared: bool },
-    Key { down: bool, keysym: u32 },
+    Ready {
+        shared: bool,
+    },
+    Key {
+        down: bool,
+        keysym: u32,
+    },
     /// A QEMU extended key event: `keycode` is qemu's number (XT make code,
     /// bit 7 for the 0xE0 prefix; see `stormrfb::qemu_keycode`).
-    QemuKey { down: bool, keysym: u32, keycode: u32 },
-    Pointer { buttons: u8, x: u16, y: u16 },
+    QemuKey {
+        down: bool,
+        keysym: u32,
+        keycode: u32,
+    },
+    Pointer {
+        buttons: u8,
+        x: u16,
+        y: u16,
+    },
     CutText(Vec<u8>),
 }
 #[derive(Clone, Copy)]
@@ -244,8 +257,8 @@ impl Server {
                     match message {
                         ClientMessage::SetPixelFormat(format) => self.format = format,
                         ClientMessage::SetEncodings(encodings) => {
-                            self.ack_extended_keys = encodings.contains(&QEMU_EXTENDED_KEY)
-                                && !self.extended_keys_acked;
+                            self.ack_extended_keys =
+                                encodings.contains(&QEMU_EXTENDED_KEY) && !self.extended_keys_acked;
                             self.encodings = encodings;
                         }
                         ClientMessage::UpdateRequest { incremental, rect } => {
@@ -328,8 +341,7 @@ impl Server {
         }
         let mut rects = Vec::with_capacity(2);
         if let Some(rect) = rect {
-            let mut pixels =
-                Vec::with_capacity(usize::from(rect.width) * usize::from(rect.height));
+            let mut pixels = Vec::with_capacity(usize::from(rect.width) * usize::from(rect.height));
             for row in usize::from(rect.y)..usize::from(rect.y) + usize::from(rect.height) {
                 let start = row * usize::from(self.init.width) + usize::from(rect.x);
                 pixels.extend_from_slice(&self.pixels[start..start + usize::from(rect.width)]);

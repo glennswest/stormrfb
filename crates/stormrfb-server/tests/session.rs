@@ -251,14 +251,22 @@ fn acknowledgement_answers_an_incremental_request_without_damage() {
     exchange(&mut c, &mut s, b);
     // The client re-advertises (as after a reconnect of its encoder); an
     // already acknowledged session is not acknowledged twice.
-    s.receive(&ClientMessage::SetEncodings(ENCODINGS.to_vec()).encode(Limits::default()).unwrap())
-        .unwrap();
+    s.receive(
+        &ClientMessage::SetEncodings(ENCODINGS.to_vec())
+            .encode(Limits::default())
+            .unwrap(),
+    )
+    .unwrap();
     assert!(s.update().unwrap().is_none());
     // A session that first asked without -258 and has drawn everything,
     // then advertises it with an incremental request and no damage: the
     // acknowledgement is answered on its own.
     let mut s = server(Security::None);
-    let enc = |v: Vec<i32>| ClientMessage::SetEncodings(v).encode(Limits::default()).unwrap();
+    let enc = |v: Vec<i32>| {
+        ClientMessage::SetEncodings(v)
+            .encode(Limits::default())
+            .unwrap()
+    };
     let req = |incremental| {
         ClientMessage::UpdateRequest {
             incremental,
@@ -271,7 +279,13 @@ fn acknowledgement_answers_an_incremental_request_without_damage() {
         .encode(Limits::default())
         .unwrap()
     };
-    for b in [VERSION.to_vec(), vec![1], vec![1], enc(vec![RAW]), req(false)] {
+    for b in [
+        VERSION.to_vec(),
+        vec![1],
+        vec![1],
+        enc(vec![RAW]),
+        req(false),
+    ] {
         s.receive(&b).unwrap();
     }
     assert!(s.update().unwrap().is_some());

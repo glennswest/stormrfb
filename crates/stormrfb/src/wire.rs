@@ -38,15 +38,29 @@ pub fn qemu_keycode(scancode: u8, extended: bool) -> Option<u32> {
 pub enum ClientMessage {
     SetPixelFormat(PixelFormat),
     SetEncodings(Vec<i32>),
-    UpdateRequest { incremental: bool, rect: Rect },
-    Key { down: bool, keysym: u32 },
+    UpdateRequest {
+        incremental: bool,
+        rect: Rect,
+    },
+    Key {
+        down: bool,
+        keysym: u32,
+    },
     /// QEMU Extended Key Event (message 255, submessage 0). `keycode` is the
     /// wire value from [`qemu_keycode`]. A server that honours it uses the
     /// keycode and its guest's own layout, so `keysym` may be 0 when the
     /// caller has only a scancode. Send only after the server acknowledged
     /// [`QEMU_EXTENDED_KEY`].
-    QemuKey { down: bool, keysym: u32, keycode: u32 },
-    Pointer { buttons: u8, x: u16, y: u16 },
+    QemuKey {
+        down: bool,
+        keysym: u32,
+        keycode: u32,
+    },
+    Pointer {
+        buttons: u8,
+        x: u16,
+        y: u16,
+    },
     CutText(Vec<u8>),
 }
 impl ClientMessage {
