@@ -43,6 +43,8 @@ qemu-system-x86_64 -name alpine -nodefaults -machine q35,accel=kvm -cpu host -sm
   -drive "file=$W/alpine.iso,media=cdrom,if=none,id=cd0,readonly=on" -device ide-cd,drive=cd0,bus=ide.0 \
   -vnc "unix:$W/vnc.sock" -device virtio-vga -serial "file:$W/serial.log" > "$W/qemu.log" 2>&1 &
 QEMU=$!
+# Running, and not a zombie waiting to be reaped.
+alive() { local st; st=$(ps -o stat= -p "$QEMU" 2>/dev/null); [ -n "$st" ] && [ "${st#Z}" = "$st" ]; }
 for _ in $(seq 1 180); do grep -q 'login:' "$W/serial.log" 2>/dev/null && break; sleep 1; done
 check "Alpine reached its login prompt" "grep -q 'login:' '$W/serial.log'"
 sleep 3
@@ -63,9 +65,9 @@ set +e
 RC=${PIPESTATUS[0]}
 set -e
 # The guest may power off before the example's last pump ends.
-check "the example typed it (exit $RC)" "[ $RC -eq 0 ] || ! kill -0 $QEMU 2>/dev/null"
-for _ in $(seq 1 60); do kill -0 $QEMU 2>/dev/null || break; sleep 1; done
-check "qemu exited: the guest ran poweroff typed by keysym" "! kill -0 $QEMU 2>/dev/null"
+check "the example typed it (exit $RC)" "[ $RC -eq 0 ] || ! alive"
+for _ in $(seq 1 60); do alive || break; sleep 1; done
+check "qemu exited: the guest ran poweroff typed by keysym" "! alive"
 
 say "serial.log tail"
 tail -5 "$W/serial.log" | sed 's/^/  /'
