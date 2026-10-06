@@ -73,6 +73,25 @@ at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
 (#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
 overflow, #12 test-crate lint.
 
+### Active — #1 QEMU Extended Key Event (-258) (2026-10-06)
+
+- [ ] codec: `QEMU_EXTENDED_KEY = -258` appended to `ENCODINGS`;
+      `ClientMessage::QemuKey { down, keysym, keycode }` (255/0, u16 down,
+      keysym, keycode); `qemu_keycode(scancode, extended)` folds the 0xE0
+      prefix into bit 7 (qemu's "number", as noVNC sends it);
+      `Rectangle::QemuExtendedKey`, the server's acknowledgement
+- [ ] client: `extended_keys()` set by the ack (no new `Event` variant:
+      stormrdp matches `Event` exhaustively); `send(QemuKey)` before the
+      ack is `Unsupported(-258)`; `key_event(down, keysym, keycode)` picks
+- [ ] server: decodes `QemuKey` → `Event::QemuKey`; acks -258 in the next
+      update when the client advertised it
+- [ ] tests: round trip/fragmentation, hostile values, client↔server ack;
+      a real qemu check (`tools/verify-extkey.sh`: Alpine, keys sent with
+      keysym 0 and scancodes only, shell output lands on the serial log)
+- [ ] docs, CHANGELOG, 0.2.0 (public enums gain variants); browser
+      (`KeyboardEvent.code`) is a follow-up: WASM cannot be rebuilt via
+      sc-build (stormcentral#64)
+
 ### Done — #4 phase 1 exit through the relay (2026-10-06)
 
 Dev has qemu + KVM, OVMF, node/npm (Playwright's Chromium per job), and
