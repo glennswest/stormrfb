@@ -261,7 +261,9 @@ client (found by reading the code, not reproduced here). Also stormvm#76.
 - RFB 3.3/3.7, indexed-colour pixel formats, ExtendedDesktopSize client resize,
   ContinuousUpdates/Fence, Tight/JPEG, IME/composition and a shipped native
   viewer are not implemented. The native harness intentionally has mouse
-  input only. The browser supports ordinary DOM keys and Latin-1 clipboard.
+  input only. The browser supports ordinary DOM keys and Latin-1 clipboard,
+  and it sends keysyms, not scancodes. The crates support QEMU Extended Key
+  Event (#1), but the browser does not use it yet (#16).
 - Default bounds are 16,777,216 pixels, 128 MiB per protocol input/output
   unit, 1 MiB text and 4,096 rectangles/update. Feed transport input in chunks
   no larger than the configured buffer allowance and drain outgoing events.

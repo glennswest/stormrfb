@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### 2026-10-06 (QEMU Extended Key Event, #1)
+- **feat:** `stormrfb`: `QEMU_EXTENDED_KEY` (-258) is advertised last in `ENCODINGS`. New `ClientMessage::QemuKey { down, keysym, keycode }` (message 255, submessage 0; encode and decode, with other submessages refused and the down flag checked). `qemu_keycode(make_code, extended)` builds the keycode with the 0xE0 prefix as bit 7, as qemu and noVNC use it. New `Rectangle::QemuExtendedKey`, the server's acknowledgement, decoded as qemu sends it and encoded by `ServerEncoder`
+- **feat:** `stormrfb-client`: `Client::extended_keys()` is set by the acknowledgement. `send(QemuKey)` before it is `Unsupported(-258)`. `Client::key_event(down, keysym, keycode)` sends `QemuKey` when it can and `Key` otherwise. `Event` is unchanged
+- **feat:** `stormrfb-server`: decodes `QemuKey` into `Event::QemuKey`, and acknowledges -258 once, in the next update, even when there is no damage
+- **test:** wire bytes and keycodes, hostile submessage and flag values, decoding qemu's own acknowledgement, the client↔server acknowledgement and fallback. `tools/verify-extkey.sh` with `examples/qemu_keys` types at a real qemu's VNC server by scancode only, with keysym 0 and keypad Enter for E0, and checks the shell's output on the serial line
+- **docs:** README protocol subset and client/server APIs, DESIGN, VALIDATION. The browser's use is #16
+
 ### 2026-10-06 (phase 1 exit through the relay, #4)
 - **test:** `tools/verify-relay.sh` + `tools/relay.browser.cjs`, run with `sc-build tools/verify-relay.sh`. In the job it builds stormconsole (`cf2cbbb`) and stormvm (`4051696`) and starts fastetcd + rustkube with the KubeVirt CRDs. It boots the Alpine 3.20 virt ISO and the Windows Server 2022 evaluation ISO under qemu/KVM as stormvm's qemu driver renders them, behind stormvm's real door and stormconsole's real relay. It then drives the VM page's Graphical console in headless Chromium with the vendored stormrfb and noVNC on the same session: canvases are checked against qemu's screendump, keys are typed through stormrfb, and bytes and handler ms per frame are measured for both clients, along with the shipped chunk sizes
 - **docs:** VALIDATION: the 2026-10-06 result. All five screens are pixel-exact in stormrfb. Alpine was logged into and Windows booted and driven to Setup's second page from stormrfb. The two clients are level on bytes and ms per frame on live guests, and stormrfb's chunk is 96,725 B (43,042 gzip) against noVNC's 181,861 (54,420). README, DESIGN and CLAUDE.md now say the gate passed and the default switch is stormconsole#99. Found on the way: stormconsole#94 (a read-only viewer's VNC relay drops the handshake) and stormvm#76 (no absolute pointer)

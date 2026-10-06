@@ -48,15 +48,16 @@ Every crate has `publish = false`. Rust edition 2024, `rust-version = 1.85`.
 | Version | **RFB 3.8 only** (`RFB 003.008\n`). Anything else fails with `Invalid("requires RFB 3.8")` |
 | Security | `None` (1) and VNC Authentication (2, DES challenge/response). No TLS/VeNCrypt/SASL. The transport is secured a layer up |
 | Pixel formats | True colour only, 16 or 32 bpp, both byte orders, validated channel masks. Colour-map formats are rejected |
-| Client → server | `SetPixelFormat`, `SetEncodings`, `FramebufferUpdateRequest`, `KeyEvent`, `PointerEvent`, `ClientCutText` (encode and decode) |
+| Client → server | `SetPixelFormat`, `SetEncodings`, `FramebufferUpdateRequest`, `KeyEvent`, `PointerEvent`, `ClientCutText`, and QEMU's Extended Key Event (message 255, submessage 0) (encode and decode) |
 | Server → client | `FramebufferUpdate`, `SetColourMapEntries` (decoded; the client ignores it), `Bell`, `ServerCutText` |
 | Decoded encodings | Raw (0), CopyRect (1), Hextile (5), ZRLE (16, one persistent zlib stream per connection) |
-| Pseudo-encodings | Cursor (-239), DesktopSize (-223), LastRect (-224) |
-| Encoder (`ServerEncoder::update`) | Raw, Hextile and ZRLE. Hextile emits only raw tiles, and ZRLE only raw (subencoding 0) tiles, deflated with `Compression::fast()`. Also encodes CopyRect, Cursor and DesktopSize rectangles |
-| Not implemented | RFB 3.3/3.7, TRLE (15) as an advertised encoding, Tight/JPEG/H.264, ExtendedDesktopSize (-308), ContinuousUpdates (-313)/Fence (-312), QEMU Extended Key Event (-258, #1), XCursor (-240), colour-map pixel formats |
+| Pseudo-encodings | Cursor (-239), DesktopSize (-223), LastRect (-224), QEMU Extended Key Event (-258) |
+| Encoder (`ServerEncoder::update`) | Raw, Hextile and ZRLE. Hextile emits only raw tiles, and ZRLE only raw (subencoding 0) tiles, deflated with `Compression::fast()`. Also encodes CopyRect, Cursor, DesktopSize and the -258 acknowledgement |
+| Not implemented | RFB 3.3/3.7, TRLE (15) as an advertised encoding, Tight/JPEG/H.264, ExtendedDesktopSize (-308), ContinuousUpdates (-313)/Fence (-312), XCursor (-240), colour-map pixel formats |
 
 `ENCODINGS`, the list the client advertises, in preference order, is
-`ZRLE, Hextile, CopyRect, Raw, Cursor, DesktopSize, LastRect`.
+`ZRLE, Hextile, CopyRect, Raw, Cursor, DesktopSize, LastRect,
+QemuExtendedKey`.
 
 ### Limits: the crates' only configuration
 
@@ -86,6 +87,18 @@ that decoder, client or session: reconnect with a fresh one.
   and encodings: `send()` rejects `SetPixelFormat`/`SetEncodings`.
 - Events: `Send`, `Ready { name }`, `Damage(Rect)`, `Resized`, `Cursor`
   (RGBA, alpha from the mask), `Bell`, `CutText`.
+- **Scancodes** (QEMU Extended Key Event, -258). A server that supports it
+  acknowledges it in the first update, and then `extended_keys()` is true.
+  `send(ClientMessage::QemuKey { down, keysym, keycode })` before that is
+  `Unsupported(-258)`. `key_event(down, keysym, Some(keycode))` sends
+  `QemuKey` when it can and `Key` when it cannot. A key with keysym 0 and
+  no acknowledgement is `Unsupported(-258)`, because there is nothing to
+  fall back to. `stormrfb::qemu_keycode(xt_make_code, extended)` builds the
+  keycode: the XT set-1 make code, with bit 7 set for an 0xE0-prefixed key
+  (qemu's "number" form, as noVNC sends it). Pause is `(0x46, true)`. qemu
+  uses the keycode and ignores the keysym, so the guest's own layout
+  decides the character: non-US layouts, AltGr, dead keys and keys with no
+  keysym work. Checked against a real qemu by `tools/verify-extkey.sh`.
 - `Framebuffer` is opaque RGBA (alpha forced to 255; the wire's spare byte is
   not alpha). CopyRect handles overlap in every direction.
 - `Renderer` is a trait for native consumers. Nothing in this repo
@@ -103,8 +116,10 @@ that decoder, client or session: reconnect with a fresh one.
   constant time. A failure sends `SecurityResult` 1 plus
   `"Authentication failed"`, and the session becomes terminal.
 - `greeting()` returns the version string to send first. `receive(bytes)`
-  yields `Send`, `Ready { shared }`, `Key`, `Pointer` (clamped to the
-  screen) and `CutText`.
+  yields `Send`, `Ready { shared }`, `Key`, `QemuKey { down, keysym,
+  keycode }`, `Pointer` (clamped to the screen) and `CutText`. A client
+  that advertises -258 is acknowledged once, in the next update. That
+  update is sent even when there is no damage.
 - `damage(rect, &pixels)` updates the server's RGBA framebuffer and extends
   the dirty rectangle (a single bounding box). `update()` answers **at most
   one** outstanding request. Incremental requests wait for damage that
@@ -253,7 +268,8 @@ podman (docs/VALIDATION.md). #10 tracks re-running it.
   untouched.
 - **stormrdp**: `stormrdp-host-rfb` bridges VNC servers to RDP with
   `stormrfb-client`. `tools/bench` drives `stormrfb-server`. It maps RDP
-  scancodes to US keysyms until #1 (QEMU Extended Key Event) lands.
+  scancodes to US keysyms. `Client::key_event` with `qemu_keycode` (#1)
+  replaces that once its pin is bumped.
 - **stormvm**: nothing yet. `stormvm vnc` bridges the hypervisor's unix VNC
   socket to a TCP port (`127.0.0.1:5900` by default). The Rust-VMM display
   server (stormvm#1) is where `stormrfb-server` is meant to be used.

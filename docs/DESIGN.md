@@ -86,9 +86,9 @@ link that is not a loopback.
 
 ### Worth having, roughly in order
 
-As built: `Cursor` (-239), `DesktopSize` (-223) and `LastRect` (-224).
-`ExtendedDesktopSize`, `ContinuousUpdates` and `Fence` are
-**(design — not built)**.
+As built: `Cursor` (-239), `DesktopSize` (-223), `LastRect` (-224) and
+QEMU Extended Key Event (-258, #1). `ExtendedDesktopSize`,
+`ContinuousUpdates` and `Fence` are **(design — not built)**.
 
 - **`DesktopSize` (-223) and `ExtendedDesktopSize` (-308)** — a console
   whose framebuffer does not follow the window is unpleasant to use, and
@@ -98,6 +98,14 @@ As built: `Cursor` (-239), `DesktopSize` (-223) and `LastRect` (-224).
   it, every mouse move is a framebuffer round trip and the pointer lags
   behind the hand.
 - **`LastRect` (-224)** — lets a server end an update without a count.
+- **QEMU Extended Key Event (-258)** — keys by scancode. A keysym is turned
+  back into a scancode by qemu's keymap, which loses non-US layouts, AltGr,
+  dead keys and keys with no keysym. A caller that already has scancodes
+  (stormrdp's RDP bridge) sends those instead, and the guest's own layout
+  decides the character. The client sends it only after the server
+  acknowledged it, and otherwise falls back to `KeyEvent`. The browser
+  client does not send it yet (#16): that needs `KeyboardEvent.code`, a
+  code→XT table and a WASM rebuild.
 - **`ContinuousUpdates` (-313) and `Fence` (-312)** — the pair that gets rid
   of request/response latency on a fast link.
 
