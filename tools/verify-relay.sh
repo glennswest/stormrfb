@@ -96,7 +96,7 @@ for d, _, fs in os.walk(root):
         # By what is in them, not by name: the console's own chunk says
         # "noVNC" and "stormrfb" on its buttons, so only code markers count.
         kind = ''
-        if f.endswith('.wasm') or b'BrowserClient' in b:
+        if f.endswith('.wasm') or b'__wbindgen' in b or b'__wbg_' in b:
             kind = 'stormrfb'
         elif b'_handleFramebufferUpdate' in b or b'_negotiateSecurity' in b:
             kind = 'noVNC'
@@ -224,7 +224,8 @@ RC=$?
 set -e
 
 say "logs (warnings and errors only)"
-grep -hiE "warn|error" "$W/c.log" "$W/stormvm.log" | grep -v 'no users and no auth_token' | head -20 || true
+grep -hiE "warn|error" "$W/c.log" | grep -v 'no users and no auth_token' | head -20 || true
+echo "  stormvm.log tail:"; tail -15 "$W/stormvm.log" | sed 's/^/    /'
 for v in alpine windows; do
   echo "  $v hypervisor.log:"; sed 's/^/    /' "$RUN/default/$v/hypervisor.log" | head -10
 done

@@ -197,7 +197,21 @@ async function open(browser, vm, client) {
   })
   // `?door=vnc` selects the tab; clicking it is what opens the console.
   await page.locator('nav.tabs button', { hasText: 'Graphical console' }).click()
-  await page.locator('.bar .state.open').waitFor({ timeout: 20000 })
+  // If the tab's own open lost a race with the canvas binding, Connect is
+  // the button a person would press next.
+  const isOpen = () => page.locator('.bar .state.open').waitFor({ timeout: 8000 }).then(() => true, () => false)
+  if (!(await isOpen())) {
+    const connect = page.locator('button.sc-primary', { hasText: 'Connect' })
+    if (await connect.count()) await connect.click()
+    if (!(await isOpen()) && !(await isOpen())) {
+      const state = await page.locator('.bar .state').innerText().catch(() => '(no state)')
+      const shown = await page.locator('p.error').allInnerTexts().catch(() => [])
+      const s = await page.evaluate(() => window.__rfb).catch(() => null)
+      console.log(`  ${vm}/${client}: state "${state}", error ${JSON.stringify(shown)}, socket ${JSON.stringify(s && { bytes: s.bytes, msgs: s.msgs, fbur: s.fbur })}`)
+      console.log(`  page errors: ${errors.join('; ') || 'none'}`)
+      throw new Error(`${vm}/${client}: the console never opened`)
+    }
+  }
   await page.locator(CANVAS[client]).waitFor({ timeout: 10000 })
   await sleep(500)
   return { page, vm, client, fetched }
