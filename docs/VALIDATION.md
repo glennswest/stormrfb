@@ -247,6 +247,28 @@ stormrfb is 53% of noVNC's chunk uncompressed and 79% gzipped.
 relay drops the RFB handshake, so that viewer sees nothing with either
 client (found by reading the code, not reproduced here). Also stormvm#76.
 
+## QEMU Extended Key Event against a real qemu — 2026-10-06 (#1)
+
+`sc-build tools/verify-extkey.sh` at `ac4d991` on dev.g8.lo (QEMU 10.1.5,
+KVM). Exit 0, 29 s. The only later commit is rustfmt. The script boots
+Alpine 3.20's virt ISO the way stormvm runs qemu (q35, OVMF, `-nodefaults`,
+virtio-vga, VNC on a unix socket) and connects `examples/qemu_keys`, which
+is `stormrfb-client` over a `UnixStream`.
+
+- qemu acknowledged -258 in its first update, and `extended_keys()` became
+  true.
+- `root`, then `echo STORMRFB-EXTKEY-$((6*7)) > /dev/ttyS0`, was typed
+  **only as QemuKey events with keysym 0**. Shift went as its own scancode
+  (0x2a), and every Enter was keypad Enter (E0 1C, keycode 0x9c).
+  `STORMRFB-EXTKEY-42` appeared on the serial line, which means qemu took
+  every keycode, including the 0xE0 one.
+- On a second connection, `poweroff` typed as plain KeyEvents (the
+  fallback) powered the guest off, and qemu exited.
+- The first run tried the fallback with `/dev/ttyS0` and showed what this
+  feature is for. qemu lower-cases an uppercase keysym on a graphic
+  console, so the shell got `/dev/ttys0`. The scancode path has no such
+  loss. A non-US guest layout was not tried.
+
 ## Remaining phase exits and limits
 
 - The real-guest part of the phase 1 exit passed on 2026-10-06 (above): a
