@@ -12,7 +12,11 @@
 #      QemuKey with keysym 0, Shift is its own scancode, and Enter is keypad
 #      Enter (E0 1C, keycode 0x9c). The command writes to the serial port, so
 #      its output in serial.log is proof qemu used the keycodes;
-#   3. on a second connection, types by keysym (plain KeyEvent), the fallback.
+#   3. on a second connection, types `poweroff` by keysym (plain KeyEvent),
+#      the fallback, and checks qemu exits. (A keysym line cannot reach the
+#      serial port: qemu lower-cases an uppercase keysym on a graphic
+#      console, so `/dev/ttyS0` arrives as `/dev/ttys0`; the first run of
+#      this script showed it. That loss is what scancodes are for.)
 set -euo pipefail
 
 ALPINE_ISO=${ALPINE_ISO:-https://dl-cdn.alpinelinux.org/alpine/v3.20/releases/x86_64/alpine-virt-3.20.3-x86_64.iso}
@@ -38,6 +42,7 @@ qemu-system-x86_64 -name alpine -nodefaults -machine q35,accel=kvm -cpu host -sm
   -drive "if=pflash,format=raw,readonly=on,file=$OVMF_CODE" -drive "if=pflash,format=raw,file=$W/vars.fd" \
   -drive "file=$W/alpine.iso,media=cdrom,if=none,id=cd0,readonly=on" -device ide-cd,drive=cd0,bus=ide.0 \
   -vnc "unix:$W/vnc.sock" -device virtio-vga -serial "file:$W/serial.log" > "$W/qemu.log" 2>&1 &
+QEMU=$!
 for _ in $(seq 1 180); do grep -q 'login:' "$W/serial.log" 2>/dev/null && break; sleep 1; done
 check "Alpine reached its login prompt" "grep -q 'login:' '$W/serial.log'"
 sleep 3
@@ -52,15 +57,15 @@ sleep 2
 check "qemu ran the command typed by scancode: STORMRFB-EXTKEY-42 on the serial line" \
   "grep -q 'STORMRFB-EXTKEY-42' '$W/serial.log'"
 
-say "keysyms (KeyEvent), the fallback"
+say "keysyms (KeyEvent), the fallback: poweroff"
 set +e
-"$EX" "$W/vnc.sock" keysym 'hostname stormrfb-keysym-ok' 'cp /proc/sys/kernel/hostname /dev/ttyS0' | sed 's/^/  /'
+"$EX" "$W/vnc.sock" keysym poweroff | sed 's/^/  /'
 RC=${PIPESTATUS[0]}
 set -e
-check "the example ran (exit $RC)" "[ $RC -eq 0 ]"
-sleep 2
-check "qemu ran the command typed by keysym: stormrfb-keysym-ok on the serial line" \
-  "grep -q 'stormrfb-keysym-ok' '$W/serial.log'"
+# The guest may power off before the example's last pump ends.
+check "the example typed it (exit $RC)" "[ $RC -eq 0 ] || ! kill -0 $QEMU 2>/dev/null"
+for _ in $(seq 1 60); do kill -0 $QEMU 2>/dev/null || break; sleep 1; done
+check "qemu exited: the guest ran poweroff typed by keysym" "! kill -0 $QEMU 2>/dev/null"
 
 say "serial.log tail"
 tail -5 "$W/serial.log" | sed 's/^/  /'
