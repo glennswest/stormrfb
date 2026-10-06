@@ -67,6 +67,26 @@ at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
 (#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
 overflow, #12 test-crate lint.
 
+### Active — #4 phase 1 exit through the relay (2026-10-06)
+
+Dev has qemu + KVM (`/dev/kvm` 0666), OVMF, node/npm (Playwright's
+Chromium installs per job), and reaches GitHub (stormvm is cloneable),
+Alpine's CDN and Microsoft's Windows Server 2022 evaluation ISO (5 GB).
+So the gate can run as one `sc-build tools/verify-relay.sh`, nothing kept:
+- [ ] `tools/verify-relay.sh`: build stormconsole (SPA + server) and
+      stormvm (`serve`) at pinned revs; fastetcd + rustkube with KubeVirt
+      CRDs and two Running VMIs; qemu (q35, KVM, OVMF, virtio-vga,
+      `-vnc unix:…/vnc.sock` — what stormvm's qemu driver renders) for an
+      Alpine ISO and the Windows Server 2022 eval ISO; stormvm's
+      registration + door; stormconsole's relay
+- [ ] `tools/relay.browser.cjs`: the VM page's Graphical console with
+      stormrfb and noVNC side by side on the same session; input through
+      stormrfb (type at Alpine, press-any-key + Enter in Windows Setup);
+      canvas pixels vs qemu's own `screendump`; per-client bytes, FBURs,
+      handler ms; the built chunk sizes from stormconsole's dist
+- [ ] record in docs/VALIDATION.md, CHANGELOG, README/DESIGN status;
+      file the default switch on stormconsole; close #4
+
 ### Done — docs refresh since 2026-09-18 (2026-09-27)
 
 Only doc comments and `test/` changed in code since 2026-09-18.
