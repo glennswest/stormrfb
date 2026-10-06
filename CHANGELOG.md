@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### 2026-10-06 (phase 1 exit through the relay, #4)
+- **test:** `tools/verify-relay.sh` + `tools/relay.browser.cjs`, run with `sc-build tools/verify-relay.sh`. In the job it builds stormconsole (`cf2cbbb`) and stormvm (`4051696`) and starts fastetcd + rustkube with the KubeVirt CRDs. It boots the Alpine 3.20 virt ISO and the Windows Server 2022 evaluation ISO under qemu/KVM as stormvm's qemu driver renders them, behind stormvm's real door and stormconsole's real relay. It then drives the VM page's Graphical console in headless Chromium with the vendored stormrfb and noVNC on the same session: canvases are checked against qemu's screendump, keys are typed through stormrfb, and bytes and handler ms per frame are measured for both clients, along with the shipped chunk sizes
+- **docs:** VALIDATION: the 2026-10-06 result. All five screens are pixel-exact in stormrfb. Alpine was logged into and Windows booted and driven to Setup's second page from stormrfb. The two clients are level on bytes and ms per frame on live guests, and stormrfb's chunk is 96,725 B (43,042 gzip) against noVNC's 181,861 (54,420). README, DESIGN and CLAUDE.md now say the gate passed and the default switch is stormconsole#99. Found on the way: stormconsole#94 (a read-only viewer's VNC relay drops the handshake) and stormvm#76 (no absolute pointer)
+
 ### 2026-09-27 (docs refresh, re-check)
 - **docs:** re-checked README, docs/ and CLAUDE.md against the code: no code change since 13581c5 and `Limits`, `ENCODINGS` and the test image's environment match. README and test/README now say that stormcentral's runner does not collect `/results` yet (stormcentral#57), so `long`'s `waves.jsonl` is not reported through it
 

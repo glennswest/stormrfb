@@ -57,6 +57,12 @@ run by stormcentral's test runner, and has not completed a run there yet
 
 ## Work plan
 
+### Status (2026-10-06)
+
+#4 done: phase 1's real-guest gate passed through stormconsole's relay
+(`sc-build tools/verify-relay.sh`, docs/VALIDATION.md). Removing noVNC is
+stormconsole#99.
+
 ### Status (2026-09-27)
 
 v0.1.1. Crate code unchanged since the 2026-09-09 performance patch
@@ -67,25 +73,25 @@ at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
 (#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
 overflow, #12 test-crate lint.
 
-### Active — #4 phase 1 exit through the relay (2026-10-06)
+### Done — #4 phase 1 exit through the relay (2026-10-06)
 
-Dev has qemu + KVM (`/dev/kvm` 0666), OVMF, node/npm (Playwright's
-Chromium installs per job), and reaches GitHub (stormvm is cloneable),
-Alpine's CDN and Microsoft's Windows Server 2022 evaluation ISO (5 GB).
-So the gate can run as one `sc-build tools/verify-relay.sh`, nothing kept:
-- [ ] `tools/verify-relay.sh`: build stormconsole (SPA + server) and
-      stormvm (`serve`) at pinned revs; fastetcd + rustkube with KubeVirt
-      CRDs and two Running VMIs; qemu (q35, KVM, OVMF, virtio-vga,
-      `-vnc unix:…/vnc.sock` — what stormvm's qemu driver renders) for an
-      Alpine ISO and the Windows Server 2022 eval ISO; stormvm's
-      registration + door; stormconsole's relay
-- [ ] `tools/relay.browser.cjs`: the VM page's Graphical console with
-      stormrfb and noVNC side by side on the same session; input through
-      stormrfb (type at Alpine, press-any-key + Enter in Windows Setup);
-      canvas pixels vs qemu's own `screendump`; per-client bytes, FBURs,
-      handler ms; the built chunk sizes from stormconsole's dist
-- [ ] record in docs/VALIDATION.md, CHANGELOG, README/DESIGN status;
-      file the default switch on stormconsole; close #4
+Dev has qemu + KVM, OVMF, node/npm (Playwright's Chromium per job), and
+reaches GitHub (stormvm is cloneable), Alpine's CDN and Microsoft's
+Windows Server 2022 evaluation ISO, so the gate runs as one
+`sc-build tools/verify-relay.sh`, nothing kept.
+- [x] `tools/verify-relay.sh` + `tools/relay.browser.cjs`: stormconsole
+      `cf2cbbb` + stormvm `4051696` built in the job, fastetcd + rustkube,
+      qemu as stormvm renders it, stormvm's door, stormconsole's relay,
+      the VM page in Chromium with stormrfb and noVNC on one session
+- [x] green at e31cf8a (632 s): 5 screens pixel-exact in both clients,
+      Alpine login/`clear` and Windows press-any-key + Alt+N through
+      stormrfb; level on B/frame and ms/frame; chunk 96,725 vs 181,861 B.
+      Lessons: noVNC 1.7 rejects a subclassed WebSocket (patch the
+      prototype); Setup ignores keys for a while after drawing and its
+      focus is the Language list (Enter does nothing, Alt+N works)
+- [x] VALIDATION/README/DESIGN/CHANGELOG; filed stormconsole#99 (default
+      switch + noVNC removal), stormconsole#94 (read-only VNC relay drops
+      the handshake), stormvm#76 (no absolute pointer)
 
 ### Done — docs refresh since 2026-09-18 (2026-09-27)
 
@@ -208,9 +214,11 @@ Commit and push each increment before testing on dev. Keep packages private.
 - [x] Conformance fixtures recorded from qemu's VNC server and TigerVNC;
       differential test against noVNC as the oracle
 - [x] `cargo-fuzz` on the decoder
-- [ ] Exit: a Windows installer and a Linux guest legible in stormconsole
-      with `@novnc/novnc` removed. **Measure** decode ms/frame, bytes/frame
-      and shipped chunk size against noVNC's 182 KB on the same session
+- [x] Exit: a Windows installer and a Linux guest legible in stormconsole
+      (2026-10-06, #4: pixel-exact through the relay, driven by keys) with
+      decode ms/frame, bytes/frame and chunk size measured against noVNC on
+      the same session (level; 96.7 KB vs 181.9 KB). Removing
+      `@novnc/novnc` is stormconsole#99
 
 ### Phase 2 — the server (stormvm#1)
 

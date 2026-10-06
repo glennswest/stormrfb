@@ -1,7 +1,8 @@
 # stormrfb — the design
 
-**Status (checked against the code 2026-09-24): phase 1 and the phase 2
-protocol half are implemented and tested; the phase exits are not met.**
+**Status (2026-10-06): phase 1 and the phase 2 protocol half are
+implemented and tested. Phase 1's real-guest gate passed (#4). Removing
+noVNC is stormconsole#99, and the phase 2 exit waits on stormvm#1.**
 This document is the design. Where the code does not do something yet, the
 text says **(design — not built)**. For what the code does, read
 [README.md](../README.md); for what was validated, [VALIDATION.md](VALIDATION.md).
@@ -209,9 +210,14 @@ installer and a Linux guest are both legible in stormconsole with
 `@novnc/novnc` removed from `web/package.json`. **Measured:** decode
 milliseconds per frame and bytes per frame against noVNC on the same
 recorded session, and the size of the shipped chunk against noVNC's 182 KB.
-*State:* built; the recorded-session measurements are in
-[PERFORMANCE.md](PERFORMANCE.md); stormconsole offers it behind `?rfb=storm`;
-the exit (real guests through the relay, noVNC removed) is **not met**.
+*State:* built. The recorded-session measurements are in
+[PERFORMANCE.md](PERFORMANCE.md). On 2026-10-06 (#4), Alpine and a Windows
+Server 2022 installer were legible (pixel-exact against qemu's
+screendump) and driven through stormconsole's relay, measured against
+noVNC on the same live session: level on bytes and ms per frame, and a
+96.7 KB chunk against noVNC's 181.9 KB ([VALIDATION.md](VALIDATION.md)).
+What remains of the exit is removing `@novnc/novnc` from stormconsole,
+which is stormconsole#99.
 
 **Phase 2 — the server**, for stormvm#1. Takes a framebuffer and damage
 from virtio-gpu, produces updates. **Measured:** frames per second and
@@ -345,8 +351,8 @@ Depended on by, as of 2026-09-24:
 
 - `stormconsole` vendors the built browser package
   (`web/src/lib/vendor/stormrfb/`, commit in `VERSION`) and offers it on
-  the VM page as `?rfb=storm`. noVNC stays the default until the phase-1
-  exit is met.
+  the VM page as `?rfb=storm`. noVNC is still the default. The real-guest
+  gate passed on 2026-10-06 (#4), and the switch is stormconsole#99.
 - `stormrdp` uses `stormrfb-client` (`stormrdp-host-rfb`, VNC→RDP bridge)
   and `stormrfb-server` (bench tooling) as git dependencies pinned by rev.
 - `stormvm` (the Rust VMM display, stormvm#1) does not yet use it.

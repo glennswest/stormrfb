@@ -182,6 +182,17 @@ fuzzing (`cargo +nightly fuzz run decoder`). Those were run on 2026-09-09.
 See [docs/VALIDATION.md](docs/VALIDATION.md) for what they need.
 Installing them for the build user is stormcentral#64.
 
+**Real guests through stormconsole's relay:** `sc-build tools/verify-relay.sh`
+(#4). It builds stormconsole and stormvm at pinned revisions in the job and
+boots an Alpine ISO and the Windows Server 2022 evaluation ISO under qemu
+with KVM, as stormvm renders them. It then drives stormconsole's VM page in
+headless Chromium with the vendored stormrfb and noVNC on the same session.
+It checks every canvas against qemu's screendump, types through stormrfb,
+and prints bytes and decode ms per frame for both clients and the shipped
+chunk sizes. It needs `/dev/kvm`, about 6 GB of downloads and about
+10 minutes. The 2026-10-06 result is in
+[docs/VALIDATION.md](docs/VALIDATION.md).
+
 Demo: `node tools/demo-server.mjs` serves `web/demo/` on
 **127.0.0.1:8765** (`PORT` overrides it). It needs a built `web/pkg/`.
 The only other listening sockets anything in this repo opens are the test
@@ -232,9 +243,10 @@ podman (docs/VALIDATION.md). #10 tracks re-running it.
 ## Who uses it
 
 - **stormconsole** (`web/src/lib/views/VmDetail.svelte`): a switch on the VM
-  page, `?rfb=storm`, remembered in `localStorage` `vm.rfb`. **noVNC stays
-  the default** until a Linux guest and a Windows installer have been driven
-  through the relay. Both clients dial the same door,
+  page, `?rfb=storm`, remembered in `localStorage` `vm.rfb`. noVNC is still
+  the default. The gate for switching (a Linux guest and a Windows installer
+  driven through the relay) passed on 2026-10-06 (#4), and the switch is
+  stormconsole#99. Both clients dial the same door,
   `/api/plugins/vm/console/{ns}/{name}/vnc`. That route is a websocket relay
   to stormvm `:9095 /api/v1/vms/{ns}/{name}/console/vnc`, after minting a
   one-attach token at `…/console/vnc/token`, and it passes RFB through
