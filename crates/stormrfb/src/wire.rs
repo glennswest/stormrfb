@@ -6,6 +6,11 @@ pub const ZRLE: i32 = 16;
 pub const CURSOR: i32 = -239;
 pub const DESKTOP_SIZE: i32 = -223;
 pub const LAST_RECT: i32 = -224;
+/// QEMU Extended Key Event. A server that supports it answers the
+/// `SetEncodings` with an empty pseudo-rectangle of this encoding
+/// ([`Rectangle::QemuExtendedKey`]); after that the client may send
+/// [`ClientMessage::QemuKey`].
+pub const QEMU_EXTENDED_KEY: i32 = -258;
 pub const ENCODINGS: &[i32] = &[
     ZRLE,
     HEXTILE,
@@ -14,7 +19,20 @@ pub const ENCODINGS: &[i32] = &[
     CURSOR,
     DESKTOP_SIZE,
     LAST_RECT,
+    QEMU_EXTENDED_KEY,
 ];
+
+/// The keycode [`ClientMessage::QemuKey`] carries for an XT (set 1)
+/// make code: the code itself, with bit 7 set for a key that has the 0xE0
+/// prefix. This is qemu's "number" form, and what noVNC sends. Pause (whose
+/// sequence is E1 1D 45) is `qemu_keycode(0x46, true)`, the same as
+/// Ctrl+Break. Returns `None` for 0 and for break codes (bit 7 already set).
+pub fn qemu_keycode(scancode: u8, extended: bool) -> Option<u32> {
+    if scancode == 0 || scancode & 0x80 != 0 {
+        return None;
+    }
+    Some(u32::from(scancode) | if extended { 0x80 } else { 0 })
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ClientMessage {
@@ -22,6 +40,12 @@ pub enum ClientMessage {
     SetEncodings(Vec<i32>),
     UpdateRequest { incremental: bool, rect: Rect },
     Key { down: bool, keysym: u32 },
+    /// QEMU Extended Key Event (message 255, submessage 0). `keycode` is the
+    /// wire value from [`qemu_keycode`]. A server that honours it uses the
+    /// keycode and its guest's own layout, so `keysym` may be 0 when the
+    /// caller has only a scancode. Send only after the server acknowledged
+    /// [`QEMU_EXTENDED_KEY`].
+    QemuKey { down: bool, keysym: u32, keycode: u32 },
     Pointer { buttons: u8, x: u16, y: u16 },
     CutText(Vec<u8>),
 }
@@ -54,6 +78,16 @@ impl ClientMessage {
             Self::Key { down, keysym } => {
                 b.extend([4, *down as u8, 0, 0]);
                 b.extend(keysym.to_be_bytes());
+            }
+            Self::QemuKey {
+                down,
+                keysym,
+                keycode,
+            } => {
+                b.extend([255, 0]);
+                b.extend(u16::from(*down).to_be_bytes());
+                b.extend(keysym.to_be_bytes());
+                b.extend(keycode.to_be_bytes());
             }
             Self::Pointer { buttons, x, y } => {
                 b.extend([5, *buttons]);
@@ -115,6 +149,22 @@ impl ClientMessage {
                 r.take(3)?;
                 Self::CutText(r.text(limits)?)
             }
+            // QEMU client messages; submessage 0 is the extended key event.
+            255 => match r.u8()? {
+                0 => {
+                    let down = match r.u16()? {
+                        0 => false,
+                        1 => true,
+                        _ => return Err(Error::Invalid("boolean")),
+                    };
+                    Self::QemuKey {
+                        down,
+                        keysym: r.u32()?,
+                        keycode: r.u32()?,
+                    }
+                }
+                _ => return Err(Error::Unsupported(255)),
+            },
             n => return Err(Error::Unsupported(i32::from(n))),
         };
         if r.pos > limits.max_bytes {

@@ -24,6 +24,8 @@ pub enum Rectangle {
         width: u16,
         height: u16,
     },
+    /// The server's acknowledgement of [`QEMU_EXTENDED_KEY`]: no pixels.
+    QemuExtendedKey,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ServerEvent {
@@ -159,6 +161,9 @@ impl ServerDecoder {
                         height: rect.height,
                     }
                 }
+                // qemu sends its framebuffer size in the rectangle; nothing
+                // else follows, and the values mean nothing.
+                QEMU_EXTENDED_KEY => Rectangle::QemuExtendedKey,
                 n => return Err(Error::Unsupported(n)),
             };
             if r.pos > self.limits.max_bytes {
@@ -265,6 +270,7 @@ impl ServerEncoder {
             let (w, h, len) = match rect {
                 Rectangle::Pixels { rect, pixels } => (rect.width, rect.height, Some(pixels.len())),
                 Rectangle::Copy { rect, .. } => (rect.width, rect.height, None),
+                Rectangle::QemuExtendedKey => (0, 0, None),
                 Rectangle::DesktopSize { width, height } => {
                     if *width == 0 || *height == 0 {
                         return Err(Error::Invalid("desktop size"));
@@ -376,6 +382,10 @@ impl ServerEncoder {
                         },
                     );
                     out.extend(DESKTOP_SIZE.to_be_bytes());
+                }
+                Rectangle::QemuExtendedKey => {
+                    put_rect(&mut out, Rect::default());
+                    out.extend(QEMU_EXTENDED_KEY.to_be_bytes());
                 }
                 Rectangle::Cursor {
                     hotspot_x,

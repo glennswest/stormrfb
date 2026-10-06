@@ -104,6 +104,7 @@ fn pseudo_and_control_roundtrips() {
             pixels: vec![[1, 2, 3, 255]],
             mask: vec![128],
         },
+        Rectangle::QemuExtendedKey,
     ];
     let b = ServerEncoder::new(Limits::default())
         .update(&rects, PixelFormat::RGBX, RAW)
@@ -111,7 +112,7 @@ fn pseudo_and_control_roundtrips() {
     let mut d = ServerDecoder::new(PixelFormat::RGBX, Limits::default()).unwrap();
     let events = decode_all(&mut d, &b);
     assert_eq!(
-        &events[1..4],
+        &events[1..5],
         rects
             .into_iter()
             .map(ServerEvent::Rectangle)
@@ -179,4 +180,25 @@ fn inflated_data_is_bounded_and_failure_is_terminal() {
     d.next(&b).unwrap();
     assert_eq!(d.next(&b[4..]), Err(Error::Limit));
     assert!(d.next(&[]).is_err());
+}
+#[test]
+fn qemu_extended_key_ack_as_qemu_sends_it() {
+    // qemu's vnc.c acknowledges -258 with one rectangle carrying its own
+    // framebuffer size and no payload, in an update of its own.
+    let mut b = vec![0, 0, 0, 1];
+    for v in [0u16, 0, 1280, 800] {
+        b.extend(v.to_be_bytes());
+    }
+    b.extend((-258i32).to_be_bytes());
+    let mut d = ServerDecoder::new(PixelFormat::RGBX, Limits::default()).unwrap();
+    assert_eq!(
+        decode_all(&mut d, &b),
+        vec![
+            ServerEvent::UpdateStart,
+            ServerEvent::Rectangle(Rectangle::QemuExtendedKey),
+            ServerEvent::UpdateEnd
+        ]
+    );
+    assert_eq!(QEMU_EXTENDED_KEY, -258);
+    assert_eq!(ENCODINGS.last(), Some(&QEMU_EXTENDED_KEY));
 }

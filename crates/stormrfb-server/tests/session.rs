@@ -188,3 +188,111 @@ fn resize_accepts_request_using_old_dimensions() {
     .unwrap();
     assert!(s.update().unwrap().is_some());
 }
+#[test]
+fn qemu_extended_keys_are_acknowledged_then_sent() {
+    let mut s = server(Security::None);
+    let mut c = Client::new(None, Limits::default());
+    exchange(&mut c, &mut s, VERSION.to_vec());
+    // Before the acknowledgement: refused, and key_event falls back to Key.
+    assert!(!c.extended_keys());
+    let qemu = ClientMessage::QemuKey {
+        down: true,
+        keysym: 0,
+        keycode: 0x1e,
+    };
+    assert_eq!(
+        c.send(qemu.clone()),
+        Err(Error::Unsupported(QEMU_EXTENDED_KEY))
+    );
+    let b = c.key_event(true, 0x61, Some(0x1e)).unwrap();
+    assert_eq!(
+        s.receive(&b).unwrap(),
+        vec![S::Key {
+            down: true,
+            keysym: 0x61
+        }]
+    );
+    assert_eq!(
+        c.key_event(true, 0, Some(0x1e)),
+        Err(Error::Unsupported(QEMU_EXTENDED_KEY))
+    );
+    // The first update carries the acknowledgement; no damage event for it.
+    let b = s.update().unwrap().unwrap();
+    exchange(&mut c, &mut s, b);
+    assert!(c.extended_keys());
+    assert!(s.update().unwrap().is_none());
+    // Now a scancode alone goes through, and the server reports it.
+    let b = c.key_event(false, 0, qemu_keycode(0x1d, true)).unwrap();
+    assert_eq!(b.len(), 12);
+    assert_eq!(
+        s.receive(&b).unwrap(),
+        vec![S::QemuKey {
+            down: false,
+            keysym: 0,
+            keycode: 0x9d
+        }]
+    );
+    // Without a keycode it is still a plain Key.
+    let b = c.key_event(true, 0xff0d, None).unwrap();
+    assert_eq!(
+        s.receive(&b).unwrap(),
+        vec![S::Key {
+            down: true,
+            keysym: 0xff0d
+        }]
+    );
+}
+#[test]
+fn acknowledgement_answers_an_incremental_request_without_damage() {
+    let mut s = server(Security::None);
+    let mut c = Client::new(None, Limits::default());
+    exchange(&mut c, &mut s, VERSION.to_vec());
+    let b = s.update().unwrap().unwrap();
+    exchange(&mut c, &mut s, b);
+    // The client re-advertises (as after a reconnect of its encoder); an
+    // already acknowledged session is not acknowledged twice.
+    s.receive(&ClientMessage::SetEncodings(ENCODINGS.to_vec()).encode(Limits::default()).unwrap())
+        .unwrap();
+    assert!(s.update().unwrap().is_none());
+    // A session that first asked without -258 and has drawn everything,
+    // then advertises it with an incremental request and no damage: the
+    // acknowledgement is answered on its own.
+    let mut s = server(Security::None);
+    let enc = |v: Vec<i32>| ClientMessage::SetEncodings(v).encode(Limits::default()).unwrap();
+    let req = |incremental| {
+        ClientMessage::UpdateRequest {
+            incremental,
+            rect: Rect {
+                width: 4,
+                height: 3,
+                ..Rect::default()
+            },
+        }
+        .encode(Limits::default())
+        .unwrap()
+    };
+    for b in [VERSION.to_vec(), vec![1], vec![1], enc(vec![RAW]), req(false)] {
+        s.receive(&b).unwrap();
+    }
+    assert!(s.update().unwrap().is_some());
+    s.receive(&req(true)).unwrap();
+    assert!(s.update().unwrap().is_none());
+    s.receive(&enc(vec![RAW, QEMU_EXTENDED_KEY])).unwrap();
+    let b = s.update().unwrap().expect("the acknowledgement");
+    let mut d = ServerDecoder::new(PixelFormat::RGBX, Limits::default()).unwrap();
+    let mut events = vec![];
+    let mut pos = 0;
+    while let Ok((e, n)) = d.next(&b[pos..]) {
+        pos += n;
+        events.push(e);
+    }
+    assert_eq!(
+        events,
+        vec![
+            ServerEvent::UpdateStart,
+            ServerEvent::Rectangle(Rectangle::QemuExtendedKey),
+            ServerEvent::UpdateEnd
+        ]
+    );
+    assert!(s.update().unwrap().is_none());
+}

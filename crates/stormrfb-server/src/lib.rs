@@ -2,7 +2,9 @@
 //!
 //! Updates are pixel rectangles only (never CopyRect or Cursor), encoded with
 //! the first of Raw/Hextile/ZRLE in the client's `SetEncodings` order; the
-//! encoder emits raw tiles for Hextile and ZRLE.
+//! encoder emits raw tiles for Hextile and ZRLE. A client that advertises
+//! QEMU Extended Key Event (-258) is acknowledged in the next update, and
+//! its extended key events arrive as [`Event::QemuKey`].
 #![forbid(unsafe_code)]
 use stormrfb::*;
 /// Supply a fresh cryptographically random challenge for every VNC-auth session.
@@ -18,6 +20,9 @@ pub enum Event {
     Send(Vec<u8>),
     Ready { shared: bool },
     Key { down: bool, keysym: u32 },
+    /// A QEMU extended key event: `keycode` is qemu's number (XT make code,
+    /// bit 7 for the 0xE0 prefix; see `stormrfb::qemu_keycode`).
+    QemuKey { down: bool, keysym: u32, keycode: u32 },
     Pointer { buttons: u8, x: u16, y: u16 },
     CutText(Vec<u8>),
 }
@@ -43,6 +48,9 @@ pub struct Server {
     dirty: Option<Rect>,
     request: Option<(bool, Rect)>,
     pending_resize: bool,
+    /// -258 was advertised and not yet acknowledged.
+    ack_extended_keys: bool,
+    extended_keys_acked: bool,
 }
 impl Server {
     pub fn new(init: ServerInit, security: Security, limits: Limits) -> Result<Self> {
@@ -66,6 +74,8 @@ impl Server {
             dirty,
             request: None,
             pending_resize: false,
+            ack_extended_keys: false,
+            extended_keys_acked: false,
         })
     }
     /// Resize a ready session only after DesktopSize was negotiated. The resize
@@ -233,7 +243,11 @@ impl Server {
                     pos += n;
                     match message {
                         ClientMessage::SetPixelFormat(format) => self.format = format,
-                        ClientMessage::SetEncodings(encodings) => self.encodings = encodings,
+                        ClientMessage::SetEncodings(encodings) => {
+                            self.ack_extended_keys = encodings.contains(&QEMU_EXTENDED_KEY)
+                                && !self.extended_keys_acked;
+                            self.encodings = encodings;
+                        }
                         ClientMessage::UpdateRequest { incremental, rect } => {
                             // The client still knows the old dimensions until it
                             // receives DesktopSize; accept its triggering request.
@@ -259,6 +273,15 @@ impl Server {
                         ClientMessage::Key { down, keysym } => {
                             out.push(Event::Key { down, keysym })
                         }
+                        ClientMessage::QemuKey {
+                            down,
+                            keysym,
+                            keycode,
+                        } => out.push(Event::QemuKey {
+                            down,
+                            keysym,
+                            keycode,
+                        }),
                         ClientMessage::Pointer { buttons, x, y } => out.push(Event::Pointer {
                             buttons,
                             x: x.min(self.init.width - 1),
@@ -295,20 +318,26 @@ impl Server {
             return Ok(Some(bytes));
         }
         let rect = if incremental {
-            let Some(dirty) = self.dirty else {
-                return Ok(None);
-            };
-            let Some(rect) = intersection(area, dirty) else {
-                return Ok(None);
-            };
-            rect
+            self.dirty.and_then(|dirty| intersection(area, dirty))
         } else {
-            area
+            Some(area)
         };
-        let mut pixels = Vec::with_capacity(usize::from(rect.width) * usize::from(rect.height));
-        for row in usize::from(rect.y)..usize::from(rect.y) + usize::from(rect.height) {
-            let start = row * usize::from(self.init.width) + usize::from(rect.x);
-            pixels.extend_from_slice(&self.pixels[start..start + usize::from(rect.width)]);
+        // An acknowledgement answers a request on its own, damage or not.
+        if rect.is_none() && !self.ack_extended_keys {
+            return Ok(None);
+        }
+        let mut rects = Vec::with_capacity(2);
+        if let Some(rect) = rect {
+            let mut pixels =
+                Vec::with_capacity(usize::from(rect.width) * usize::from(rect.height));
+            for row in usize::from(rect.y)..usize::from(rect.y) + usize::from(rect.height) {
+                let start = row * usize::from(self.init.width) + usize::from(rect.x);
+                pixels.extend_from_slice(&self.pixels[start..start + usize::from(rect.width)]);
+            }
+            rects.push(Rectangle::Pixels { rect, pixels });
+        }
+        if self.ack_extended_keys {
+            rects.push(Rectangle::QemuExtendedKey);
         }
         let encoding = self
             .encodings
@@ -316,14 +345,18 @@ impl Server {
             .find(|e| [RAW, HEXTILE, ZRLE].contains(e))
             .copied()
             .unwrap_or(RAW);
-        let bytes =
-            self.encoder
-                .update(&[Rectangle::Pixels { rect, pixels }], self.format, encoding)?;
-        if self
-            .dirty
-            .is_some_and(|dirty| intersection(dirty, rect) == Some(dirty))
-        {
-            self.dirty = None;
+        let bytes = self.encoder.update(&rects, self.format, encoding)?;
+        if self.ack_extended_keys {
+            self.ack_extended_keys = false;
+            self.extended_keys_acked = true;
+        }
+        if let Some(rect) = rect {
+            if self
+                .dirty
+                .is_some_and(|dirty| intersection(dirty, rect) == Some(dirty))
+            {
+                self.dirty = None;
+            }
         }
         self.request = None;
         Ok(Some(bytes))

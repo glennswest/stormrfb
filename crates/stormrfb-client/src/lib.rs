@@ -128,6 +128,8 @@ impl Framebuffer {
                 *self = Self::new(width, height, self.limits)?;
                 Ok(Event::Resized { width, height })
             }
+            // A capability, not a picture: [`Client`] consumes it.
+            Rectangle::QemuExtendedKey => Err(Error::Invalid("not a framebuffer rectangle")),
             Rectangle::Cursor {
                 hotspot_x,
                 hotspot_y,
@@ -176,6 +178,7 @@ pub struct Client {
     limits: Limits,
     failed: bool,
     resized: bool,
+    extended_keys: bool,
 }
 impl Client {
     pub fn new(password: Option<Vec<u8>>, limits: Limits) -> Self {
@@ -187,11 +190,21 @@ impl Client {
             limits,
             failed: false,
             resized: false,
+            extended_keys: false,
         }
     }
     pub fn framebuffer(&self) -> Option<&Framebuffer> {
         self.framebuffer.as_ref()
     }
+    /// Whether the server acknowledged QEMU Extended Key Event (-258), so
+    /// [`ClientMessage::QemuKey`] may be sent. It arrives with the first
+    /// update after the handshake, so it is `false` until then.
+    pub fn extended_keys(&self) -> bool {
+        self.extended_keys
+    }
+    /// Encode a client message. The client owns `SetPixelFormat` and
+    /// `SetEncodings`; `QemuKey` before [`Client::extended_keys`] is
+    /// `Unsupported(QEMU_EXTENDED_KEY)`.
     pub fn send(&self, message: ClientMessage) -> Result<Vec<u8>> {
         if self.failed || self.handshake.is_some() {
             return Err(Error::Invalid("client not ready"));
@@ -202,7 +215,25 @@ impl Client {
         ) {
             return Err(Error::Invalid("client owns format and encodings"));
         }
+        if matches!(message, ClientMessage::QemuKey { .. }) && !self.extended_keys {
+            return Err(Error::Unsupported(QEMU_EXTENDED_KEY));
+        }
         message.encode(self.limits)
+    }
+    /// A key, by scancode where the server takes one and by keysym where it
+    /// does not. `keycode` is [`qemu_keycode`]'s value. With it and an
+    /// acknowledging server this sends `QemuKey` (and `keysym` may be 0);
+    /// otherwise it sends `Key`, which needs a keysym.
+    pub fn key_event(&self, down: bool, keysym: u32, keycode: Option<u32>) -> Result<Vec<u8>> {
+        match keycode {
+            Some(keycode) if self.extended_keys => self.send(ClientMessage::QemuKey {
+                down,
+                keysym,
+                keycode,
+            }),
+            _ if keysym == 0 => Err(Error::Unsupported(QEMU_EXTENDED_KEY)),
+            _ => self.send(ClientMessage::Key { down, keysym }),
+        }
     }
     /// Input and returned events are bounded per call. Drain returned sends in order.
     /// Any error is terminal; reconnect using a fresh Client.
@@ -273,6 +304,9 @@ impl Client {
                     Ok((event, n)) => {
                         pos += n;
                         match event {
+                            ServerEvent::Rectangle(Rectangle::QemuExtendedKey) => {
+                                self.extended_keys = true;
+                            }
                             ServerEvent::Rectangle(rect) => {
                                 let e = self.framebuffer.as_mut().unwrap().apply(rect)?;
                                 if matches!(e, Event::Resized { .. }) {

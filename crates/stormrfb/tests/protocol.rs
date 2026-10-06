@@ -17,6 +17,11 @@ fn client_messages_roundtrip_and_fragment() {
             down: true,
             keysym: 0xff0d,
         },
+        ClientMessage::QemuKey {
+            down: false,
+            keysym: 0,
+            keycode: 0x9c,
+        },
         ClientMessage::Pointer {
             buttons: 5,
             x: 42,
@@ -145,4 +150,36 @@ fn vnc_des_known_answer() {
     let out = vnc_response(&password, challenge);
     assert_eq!(&out[..8], &expected);
     assert_eq!(&out[8..], &expected);
+}
+#[test]
+fn qemu_extended_key_event_wire_and_keycodes() {
+    // RFB community spec / qemu vnc.c: U8 255, U8 0, U16 down, U32 keysym,
+    // U32 keycode. 'a' is XT 0x1e.
+    let b = ClientMessage::QemuKey {
+        down: true,
+        keysym: 0x61,
+        keycode: qemu_keycode(0x1e, false).unwrap(),
+    }
+    .encode(Limits::default())
+    .unwrap();
+    assert_eq!(b, [255, 0, 0, 1, 0, 0, 0, 0x61, 0, 0, 0, 0x1e]);
+    // The 0xE0 prefix is bit 7: right Ctrl E0 1D → 0x9d, keypad Enter
+    // E0 1C → 0x9c, Up E0 48 → 0xc8; Pause (E1 1D 45) is 0xc6.
+    assert_eq!(qemu_keycode(0x1d, true), Some(0x9d));
+    assert_eq!(qemu_keycode(0x1c, true), Some(0x9c));
+    assert_eq!(qemu_keycode(0x48, true), Some(0xc8));
+    assert_eq!(qemu_keycode(0x46, true), Some(0xc6));
+    assert_eq!(qemu_keycode(0x01, false), Some(0x01));
+    // No key 0, and a break code is not a key.
+    assert_eq!(qemu_keycode(0, false), None);
+    assert_eq!(qemu_keycode(0x9e, false), None);
+    // Other QEMU submessages are refused, and so is a down flag of 2.
+    assert_eq!(
+        ClientMessage::decode(&[255, 1, 0, 0], Limits::default()),
+        Err(Error::Unsupported(255))
+    );
+    assert_eq!(
+        ClientMessage::decode(&[255, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1], Limits::default()),
+        Err(Error::Invalid("boolean"))
+    );
 }
