@@ -360,14 +360,27 @@ async function typeAt(p, text) {
   } else {
     const first = await legible('windows Setup, first page', 'windows', wp)
     console.log(thumb(first))
-    await phase('windows Setup: Enter to the next page', wp, async () => {
-      await w.storm.page.keyboard.press('Enter')
-      await sleep(4000)
+    // Next, the way a person without a mouse would press it: Enter (the
+    // default button), then its mnemonic Alt+N, then Tab to it and Enter.
+    let how = null
+    await phase('windows Setup: keys to the next page', wp, async () => {
+      for (const keys of [['Enter'], ['Alt+n'], ['Tab', 'Tab', 'Tab', 'Enter']]) {
+        await w.storm.page.locator(CANVAS.storm).focus()
+        for (const k of keys) {
+          await w.storm.page.keyboard.press(k)
+          await sleep(300)
+        }
+        await sleep(5000)
+        if (differ(await screendump('windows'), first) > MOVED) {
+          how = keys.join(' ')
+          break
+        }
+      }
       return settle('windows', { gap: 2000, timeout: 60000, ok: (d) => d.lit > 0.5 })
     })
-    const next = await legible('windows Setup, second page', 'windows', wp)
+    const next = await legible('windows Setup, after the keys', 'windows', wp)
     console.log(thumb(next))
-    check(differ(next, first) > MOVED, 'windows: Enter typed at stormrfb moved Setup to its next page', `${differ(next, first)} pixels changed`)
+    check(!!how, 'windows: keys typed at stormrfb moved Setup to its next page', how ? `${how}: ${differ(next, first)} pixels changed` : 'no key changed the page')
   }
 
   // ---- what each client fetched, and the numbers ------------------------------
