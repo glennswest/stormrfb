@@ -13,6 +13,7 @@
 // so "per frame"), and the time spent in the socket's message handler —
 // which for both clients is decode plus canvas paint, synchronously.
 const fs = require('fs')
+const zlib = require('zlib')
 const net = require('net')
 const path = require('path')
 const { chromium } = require('playwright')
@@ -112,6 +113,43 @@ function thumb(d, cols = 64) {
     out.push(`    |${line}|`)
   }
   return out.join('\n')
+}
+
+// The screen itself, as a PNG in the log (base64, one line), so a reader of
+// the build log can look at what the guest showed. Nothing else is kept.
+function png(label, d) {
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+    return c >>> 0
+  })
+  const crc = (b) => {
+    let c = 0xffffffff
+    for (const x of b) c = crcTable[(c ^ x) & 255] ^ (c >>> 8)
+    return (c ^ 0xffffffff) >>> 0
+  }
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4)
+    len.writeUInt32BE(data.length)
+    const td = Buffer.concat([Buffer.from(type), data])
+    const c = Buffer.alloc(4)
+    c.writeUInt32BE(crc(td))
+    return Buffer.concat([len, td, c])
+  }
+  const raw = Buffer.alloc((d.w * 3 + 1) * d.h)
+  for (let y = 0; y < d.h; y++) d.rgb.copy(raw, y * (d.w * 3 + 1) + 1, y * d.w * 3, (y + 1) * d.w * 3)
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(d.w, 0)
+  ihdr.writeUInt32BE(d.h, 4)
+  ihdr[8] = 8
+  ihdr[9] = 2
+  const out = Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
+    chunk('IEND', Buffer.alloc(0)),
+  ])
+  console.log(`PNG ${label} ${out.toString('base64')}`)
 }
 
 // Wait until two dumps `gap` ms apart are the same screen (and `ok` holds).
@@ -321,6 +359,7 @@ async function typeAt(p, text) {
   })
   const booted = await legible('alpine at its login prompt', 'alpine', ap)
   console.log(thumb(booted))
+  png('alpine-login', booted)
 
   // Click into the canvas (focus, pointer through the relay), log in, and
   // scroll a lot of text: the activity is the measurement.
@@ -360,6 +399,8 @@ async function typeAt(p, text) {
   } else {
     const first = await legible('windows Setup, first page', 'windows', wp)
     console.log(thumb(first))
+    png('windows-first', first)
+    console.log(`  windows: QMP status ${JSON.stringify(await qmp('windows', { execute: 'query-status' }))}`)
     // Next, the way a person without a mouse would press it: Enter (the
     // default button), then its mnemonic Alt+N, then Tab to it and Enter.
     // Setup can draw before it takes input, so it is given a while first.
@@ -405,6 +446,7 @@ async function typeAt(p, text) {
         other = (await moved()) ? 'QMP send-key ret' : 'nothing: not noVNC, not QMP send-key'
       }
       console.log(`  windows: what moved Setup instead: ${other}`)
+      png('windows-after', await screendump('windows'))
     }
     const next = await legible('windows Setup, after the keys', 'windows', wp)
     console.log(thumb(next))
