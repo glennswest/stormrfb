@@ -74,6 +74,18 @@ at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
 (#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
 overflow, #12 test-crate lint.
 
+### Active — #5 real Hextile/ZRLE tile subencodings (2026-10-07)
+
+Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
+- [ ] `tiles.rs` encoder side: Hextile per tile (bg-only, carried bg,
+      fg + subrects, coloured subrects, raw when smaller); ZRLE per tile
+      (smallest of solid, packed palette, plain RLE, palette RLE, raw).
+      Colours compared as wire pixels, so 16 bpp quantization is exact
+- [ ] unit tests: each subencoding chosen and round-trips; fuzz-ish
+      random tiles round-trip in every test/ pixel format
+- [ ] sc-build: workspace tests, clippy, fmt; test/ medium for bytes/frame
+- [ ] docs (README, server crate doc, VALIDATION, DESIGN), CHANGELOG
+
 ### Done — #13 stormcentral#56 references (2026-10-07)
 
 - [x] README, CLAUDE.md shipping line, presentation (2 places): only
