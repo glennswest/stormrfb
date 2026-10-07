@@ -77,7 +77,7 @@ impl Scene {
                 // 8×8 blocks of one colour plus a moving diagonal line:
                 // solid areas and edges, like a desktop.
                 let block = mix(self.seed, k, u32::from(i / 8), u32::from(j / 8));
-                let v = if (u32::from(i) + u32::from(j) + k) % 29 == 0 {
+                let v = if (u32::from(i) + u32::from(j) + k).is_multiple_of(29) {
                     !block
                 } else {
                     block
