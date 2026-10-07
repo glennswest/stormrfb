@@ -6,6 +6,13 @@
 //! RLE, subrectangles) by size, raw only when nothing is smaller. A client that advertises
 //! QEMU Extended Key Event (-258) is acknowledged in the next update, and
 //! its extended key events arrive as [`Event::QemuKey`].
+//!
+//! A client that advertises ExtendedDesktopSize (-308) is sent the layout
+//! in the next update and every resize as -308 (otherwise as DesktopSize).
+//! Its SetDesktopSize arrives as [`Event::SetDesktopSize`], and the
+//! application answers with [`Server::accept_resize`] or
+//! [`Server::refuse_resize`]. A request outside [`Limits`] or with an invalid
+//! layout is refused without an event.
 #![forbid(unsafe_code)]
 use stormrfb::*;
 /// Supply a fresh cryptographically random challenge for every VNC-auth session.
@@ -39,6 +46,15 @@ pub enum Event {
         y: u16,
     },
     CutText(Vec<u8>),
+    /// The client asks for this size and layout (SetDesktopSize). It fits
+    /// the session's [`Limits`] and `stormrfb::valid_layout` holds. Answer
+    /// with [`Server::accept_resize`] or [`Server::refuse_resize`]; a newer
+    /// request replaces an unanswered one.
+    SetDesktopSize {
+        width: u16,
+        height: u16,
+        screens: Vec<Screen>,
+    },
 }
 #[derive(Clone, Copy)]
 enum State {
@@ -65,6 +81,13 @@ pub struct Server {
     /// -258 was advertised and not yet acknowledged.
     ack_extended_keys: bool,
     extended_keys_acked: bool,
+    screens: Vec<Screen>,
+    /// -308 was newly advertised: send the layout in the next update.
+    announce_layout: bool,
+    /// The client's unanswered SetDesktopSize.
+    requested: Option<(u16, u16, Vec<Screen>)>,
+    /// Status of the latest answer to the client, not yet sent.
+    resize_reply: Option<u16>,
 }
 impl Server {
     pub fn new(init: ServerInit, security: Security, limits: Limits) -> Result<Self> {
@@ -90,18 +113,59 @@ impl Server {
             pending_resize: false,
             ack_extended_keys: false,
             extended_keys_acked: false,
+            screens: vec![Screen::whole(0, init.width, init.height)],
+            announce_layout: false,
+            requested: None,
+            resize_reply: None,
         })
     }
-    /// Resize a ready session only after DesktopSize was negotiated. The resize
-    /// is sent as the final rectangle of the next requested update.
+    fn extended_desktop_size(&self) -> bool {
+        self.encodings.contains(&EXTENDED_DESKTOP_SIZE)
+    }
+    /// Resize a ready session only after DesktopSize or ExtendedDesktopSize
+    /// was negotiated. The layout becomes one screen (keeping the first
+    /// screen's id). The resize is sent alone as the next requested update,
+    /// as ExtendedDesktopSize when the client advertised it.
     pub fn resize(&mut self, width: u16, height: u16) -> Result<()> {
-        if !matches!(self.state, State::Ready) || !self.encodings.contains(&DESKTOP_SIZE) {
+        if !matches!(self.state, State::Ready)
+            || !(self.encodings.contains(&DESKTOP_SIZE) || self.extended_desktop_size())
+        {
             return Err(Error::Unsupported(DESKTOP_SIZE));
         }
+        let id = self.screens.first().map_or(0, |s| s.id);
+        self.set_size(width, height, vec![Screen::whole(id, width, height)])
+    }
+    /// Grant the client's latest [`Event::SetDesktopSize`]: the framebuffer
+    /// becomes that size and layout (cleared to black, so supply its pixels
+    /// with [`Server::damage`]), and the next update answers the client with
+    /// status `RESIZE_OK`. A later [`Server::resize`] still overrides it.
+    pub fn accept_resize(&mut self) -> Result<()> {
+        let Some((width, height, screens)) = self.requested.take() else {
+            return Err(Error::Invalid("no resize request"));
+        };
+        self.set_size(width, height, screens)?;
+        self.resize_reply = Some(RESIZE_OK);
+        Ok(())
+    }
+    /// Refuse the client's latest [`Event::SetDesktopSize`] with a
+    /// `RESIZE_*` error status (`RESIZE_PROHIBITED`, …), sent with the
+    /// current size and layout in the next update.
+    pub fn refuse_resize(&mut self, status: u16) -> Result<()> {
+        if status == RESIZE_OK {
+            return Err(Error::Invalid("refusal status"));
+        }
+        if self.requested.take().is_none() {
+            return Err(Error::Invalid("no resize request"));
+        }
+        self.resize_reply = Some(status);
+        Ok(())
+    }
+    fn set_size(&mut self, width: u16, height: u16, screens: Vec<Screen>) -> Result<()> {
         let n = self.limits.pixels(width, height)?;
         if n == 0 {
             return Err(Error::Invalid("empty framebuffer"));
         }
+        self.screens = screens;
         self.pixels = vec![[0, 0, 0, 255]; n];
         self.init.width = width;
         self.init.height = height;
@@ -260,7 +324,33 @@ impl Server {
                         ClientMessage::SetEncodings(encodings) => {
                             self.ack_extended_keys =
                                 encodings.contains(&QEMU_EXTENDED_KEY) && !self.extended_keys_acked;
+                            let extended = encodings.contains(&EXTENDED_DESKTOP_SIZE);
+                            self.announce_layout = extended
+                                && (self.announce_layout || !self.extended_desktop_size());
                             self.encodings = encodings;
+                        }
+                        ClientMessage::SetDesktopSize {
+                            width,
+                            height,
+                            screens,
+                        } => {
+                            if !self.extended_desktop_size() {
+                                return Err(Error::Unsupported(EXTENDED_DESKTOP_SIZE));
+                            }
+                            if !valid_layout(width, height, &screens) {
+                                self.requested = None;
+                                self.resize_reply = Some(RESIZE_INVALID_LAYOUT);
+                            } else if self.limits.pixels(width, height).is_err() {
+                                self.requested = None;
+                                self.resize_reply = Some(RESIZE_OUT_OF_RESOURCES);
+                            } else {
+                                self.requested = Some((width, height, screens.clone()));
+                                out.push(Event::SetDesktopSize {
+                                    width,
+                                    height,
+                                    screens,
+                                });
+                            }
                         }
                         ClientMessage::UpdateRequest { incremental, rect } => {
                             // The client still knows the old dimensions until it
@@ -319,15 +409,14 @@ impl Server {
             return Ok(None);
         };
         if self.pending_resize {
-            let bytes = self.encoder.update(
-                &[Rectangle::DesktopSize {
-                    width: self.init.width,
-                    height: self.init.height,
-                }],
-                self.format,
-                RAW,
-            )?;
+            let rect = self.layout().unwrap_or(Rectangle::DesktopSize {
+                width: self.init.width,
+                height: self.init.height,
+            });
+            let bytes = self.encoder.update(&[rect], self.format, RAW)?;
             self.pending_resize = false;
+            self.announce_layout = false;
+            self.resize_reply = None;
             self.request = None;
             return Ok(Some(bytes));
         }
@@ -336,11 +425,13 @@ impl Server {
         } else {
             Some(area)
         };
-        // An acknowledgement answers a request on its own, damage or not.
-        if rect.is_none() && !self.ack_extended_keys {
+        let layout = self.layout();
+        // An acknowledgement or a resize answer answers a request on its
+        // own, damage or not.
+        if rect.is_none() && !self.ack_extended_keys && layout.is_none() {
             return Ok(None);
         }
-        let mut rects = Vec::with_capacity(2);
+        let mut rects = Vec::with_capacity(3);
         if let Some(rect) = rect {
             let mut pixels = Vec::with_capacity(usize::from(rect.width) * usize::from(rect.height));
             for row in usize::from(rect.y)..usize::from(rect.y) + usize::from(rect.height) {
@@ -349,6 +440,7 @@ impl Server {
             }
             rects.push(Rectangle::Pixels { rect, pixels });
         }
+        rects.extend(layout);
         if self.ack_extended_keys {
             rects.push(Rectangle::QemuExtendedKey);
         }
@@ -363,6 +455,8 @@ impl Server {
             self.ack_extended_keys = false;
             self.extended_keys_acked = true;
         }
+        self.announce_layout = false;
+        self.resize_reply = None;
         if let Some(rect) = rect
             && self
                 .dirty
@@ -372,6 +466,29 @@ impl Server {
         }
         self.request = None;
         Ok(Some(bytes))
+    }
+}
+impl Server {
+    /// The ExtendedDesktopSize rectangle the next update carries, if any:
+    /// one per update, with the current size and layout, answering the
+    /// client's latest request when there is an answer to send.
+    fn layout(&self) -> Option<Rectangle> {
+        if !self.extended_desktop_size()
+            || !(self.pending_resize || self.announce_layout || self.resize_reply.is_some())
+        {
+            return None;
+        }
+        Some(Rectangle::ExtendedDesktopSize {
+            reason: if self.resize_reply.is_some() {
+                RESIZE_BY_CLIENT
+            } else {
+                RESIZE_BY_SERVER
+            },
+            status: self.resize_reply.unwrap_or(RESIZE_OK),
+            width: self.init.width,
+            height: self.init.height,
+            screens: self.screens.clone(),
+        })
     }
 }
 fn union(a: Rect, b: Rect) -> Rect {

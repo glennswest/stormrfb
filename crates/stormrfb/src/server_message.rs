@@ -26,6 +26,18 @@ pub enum Rectangle {
     },
     /// The server's acknowledgement of [`QEMU_EXTENDED_KEY`]: no pixels.
     QemuExtendedKey,
+    /// [`EXTENDED_DESKTOP_SIZE`]: the framebuffer's size and screen layout.
+    /// `reason` is one of the `RESIZE_BY_*` constants and `status` one of
+    /// the `RESIZE_*` status constants. A refused request carries the
+    /// current size. On the wire, `reason` and `status` are the
+    /// rectangle's x and y.
+    ExtendedDesktopSize {
+        reason: u16,
+        status: u16,
+        width: u16,
+        height: u16,
+        screens: Vec<Screen>,
+    },
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ServerEvent {
@@ -161,6 +173,20 @@ impl ServerDecoder {
                         height: rect.height,
                     }
                 }
+                EXTENDED_DESKTOP_SIZE => {
+                    if pixels == 0 {
+                        return Err(Error::Invalid("desktop size"));
+                    }
+                    let n = r.u8()?;
+                    r.take(3)?;
+                    Rectangle::ExtendedDesktopSize {
+                        reason: rect.x,
+                        status: rect.y,
+                        width: rect.width,
+                        height: rect.height,
+                        screens: read_screens(&mut r, n)?,
+                    }
+                }
                 // qemu sends its framebuffer size in the rectangle; nothing
                 // else follows, and the values mean nothing.
                 QEMU_EXTENDED_KEY => Rectangle::QemuExtendedKey,
@@ -277,6 +303,20 @@ impl ServerEncoder {
                     }
                     (*width, *height, None)
                 }
+                Rectangle::ExtendedDesktopSize {
+                    width,
+                    height,
+                    screens,
+                    ..
+                } => {
+                    if *width == 0 || *height == 0 {
+                        return Err(Error::Invalid("desktop size"));
+                    }
+                    if screens.len() > 255 {
+                        return Err(Error::Limit);
+                    }
+                    (*width, *height, None)
+                }
                 Rectangle::Cursor {
                     width,
                     height,
@@ -381,6 +421,25 @@ impl ServerEncoder {
                 Rectangle::QemuExtendedKey => {
                     put_rect(&mut out, Rect::default());
                     out.extend(QEMU_EXTENDED_KEY.to_be_bytes());
+                }
+                Rectangle::ExtendedDesktopSize {
+                    reason,
+                    status,
+                    width,
+                    height,
+                    screens,
+                } => {
+                    put_rect(
+                        &mut out,
+                        Rect {
+                            x: *reason,
+                            y: *status,
+                            width: *width,
+                            height: *height,
+                        },
+                    );
+                    out.extend(EXTENDED_DESKTOP_SIZE.to_be_bytes());
+                    put_screens(&mut out, screens, 3)?;
                 }
                 Rectangle::Cursor {
                     hotspot_x,

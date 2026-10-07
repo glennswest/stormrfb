@@ -128,6 +128,15 @@ impl Framebuffer {
                 *self = Self::new(width, height, self.limits)?;
                 Ok(Event::Resized { width, height })
             }
+            // Also a layout announcement or a refusal: reallocate (and
+            // clear) only when the size changed. [`Client`] does not pass
+            // it on unless it did.
+            Rectangle::ExtendedDesktopSize { width, height, .. } => {
+                if (width, height) != (self.width, self.height) {
+                    *self = Self::new(width, height, self.limits)?;
+                }
+                Ok(Event::Resized { width, height })
+            }
             // A capability, not a picture: [`Client`] consumes it.
             Rectangle::QemuExtendedKey => Err(Error::Invalid("not a framebuffer rectangle")),
             Rectangle::Cursor {
@@ -179,6 +188,9 @@ pub struct Client {
     failed: bool,
     resized: bool,
     extended_keys: bool,
+    desktop_resize: bool,
+    screens: Vec<Screen>,
+    resize_status: Option<u16>,
 }
 impl Client {
     pub fn new(password: Option<Vec<u8>>, limits: Limits) -> Self {
@@ -191,6 +203,9 @@ impl Client {
             failed: false,
             resized: false,
             extended_keys: false,
+            desktop_resize: false,
+            screens: Vec::new(),
+            resize_status: None,
         }
     }
     pub fn framebuffer(&self) -> Option<&Framebuffer> {
@@ -201,6 +216,41 @@ impl Client {
     /// update after the handshake, so it is `false` until then.
     pub fn extended_keys(&self) -> bool {
         self.extended_keys
+    }
+    /// Whether the server sent an ExtendedDesktopSize (-308) rectangle, so
+    /// [`Client::request_resize`] may be used. A server that supports it
+    /// sends one with the first update after the handshake.
+    pub fn desktop_resize(&self) -> bool {
+        self.desktop_resize
+    }
+    /// The screen layout from the server's latest ExtendedDesktopSize;
+    /// empty until one arrives.
+    pub fn screens(&self) -> &[Screen] {
+        &self.screens
+    }
+    /// The status of the server's latest answer to a
+    /// [`Client::request_resize`]: `RESIZE_OK` or a `RESIZE_*` error code.
+    /// `None` until an answer arrives. A granted size arrives as
+    /// [`Event::Resized`].
+    pub fn resize_status(&self) -> Option<u16> {
+        self.resize_status
+    }
+    /// SetDesktopSize: ask the server for a `width` x `height` framebuffer,
+    /// as one screen that keeps the id and flags of the current first
+    /// screen. `Unsupported(EXTENDED_DESKTOP_SIZE)` before
+    /// [`Client::desktop_resize`].
+    pub fn request_resize(&self, width: u16, height: u16) -> Result<Vec<u8>> {
+        if width == 0 || height == 0 {
+            return Err(Error::Invalid("empty framebuffer"));
+        }
+        let first = self.screens.first();
+        let mut screen = Screen::whole(first.map_or(0, |s| s.id), width, height);
+        screen.flags = first.map_or(0, |s| s.flags);
+        self.send(ClientMessage::SetDesktopSize {
+            width,
+            height,
+            screens: vec![screen],
+        })
     }
     /// Encode a client message. The client owns `SetPixelFormat` and
     /// `SetEncodings`; `QemuKey` before [`Client::extended_keys`] is
@@ -217,6 +267,9 @@ impl Client {
         }
         if matches!(message, ClientMessage::QemuKey { .. }) && !self.extended_keys {
             return Err(Error::Unsupported(QEMU_EXTENDED_KEY));
+        }
+        if matches!(message, ClientMessage::SetDesktopSize { .. }) && !self.desktop_resize {
+            return Err(Error::Unsupported(EXTENDED_DESKTOP_SIZE));
         }
         message.encode(self.limits)
     }
@@ -306,6 +359,26 @@ impl Client {
                         match event {
                             ServerEvent::Rectangle(Rectangle::QemuExtendedKey) => {
                                 self.extended_keys = true;
+                            }
+                            ServerEvent::Rectangle(Rectangle::ExtendedDesktopSize {
+                                reason,
+                                status,
+                                width,
+                                height,
+                                screens,
+                            }) => {
+                                self.desktop_resize = true;
+                                self.screens = screens;
+                                if reason == RESIZE_BY_CLIENT {
+                                    self.resize_status = Some(status);
+                                }
+                                let f = self.framebuffer.as_mut().unwrap();
+                                if (width, height) != (f.width(), f.height()) {
+                                    events.push(
+                                        f.apply(Rectangle::DesktopSize { width, height })?,
+                                    );
+                                    self.resized = true;
+                                }
                             }
                             ServerEvent::Rectangle(rect) => {
                                 let e = self.framebuffer.as_mut().unwrap().apply(rect)?;

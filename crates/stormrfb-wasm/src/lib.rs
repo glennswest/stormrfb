@@ -103,6 +103,20 @@ impl BrowserClient {
             y: y.min(self.height().saturating_sub(1)),
         })
     }
+    /// Whether the server takes resize requests (it sent ExtendedDesktopSize).
+    pub fn can_resize(&self) -> bool {
+        self.client.desktop_resize()
+    }
+    /// SetDesktopSize bytes asking for a `width` x `height` framebuffer.
+    pub fn resize(&self, width: u16, height: u16) -> Result<Uint8Array, JsValue> {
+        let b = self.client.request_resize(width, height).map_err(error)?;
+        Ok(Uint8Array::from(b.as_slice()))
+    }
+    /// The status of the server's latest answer to `resize` (0 granted,
+    /// 1 prohibited, 2 out of resources, 3 invalid layout), or undefined.
+    pub fn resize_status(&self) -> Option<u16> {
+        self.client.resize_status()
+    }
     pub fn clipboard(&self, text: &str) -> Result<Uint8Array, JsValue> {
         let bytes = text
             .chars()

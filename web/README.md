@@ -41,7 +41,9 @@ session.close();
 
 The caller supplies the authorized websocket URL, handles clipboard permission
 and reports connection errors. Options: `password`, `onready(name)`, `onclipboard(text)`,
-`onbell()`, `onerror(error)`. The returned session has `close()` and `clipboard(text)`.
+`onbell()`, `onerror(error)`. The returned session has `close()`, `clipboard(text)` and
+`resize(width, height)`, which asks the server for that desktop size (ExtendedDesktopSize)
+and returns `false` when the server takes no resize requests, or not yet.
 The canvas is sized to the guest framebuffer; scaling is the page's CSS. Text clipboard is
 Latin-1 as specified by RFB.
 Passwords are encoded as UTF-8 bytes and truncated to eight bytes by VNC Auth.

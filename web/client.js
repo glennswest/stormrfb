@@ -87,5 +87,13 @@ export async function connect(canvas, url, { password, onready, onclipboard, onb
     send(client.pointer(e.buttons, ...last, 0)); e.preventDefault();
   });
   listen('contextmenu', e => e.preventDefault());
-  return { close, clipboard: text => { if (ready) send(client.clipboard(text)); } };
+  return {
+    close,
+    clipboard: text => { if (ready) send(client.clipboard(text)); },
+    /** Ask the server for a width x height desktop; false if it takes no requests (yet). */
+    resize: (width, height) => {
+      if (!ready || !client.can_resize()) return false;
+      send(client.resize(width, height)); return true;
+    },
+  };
 }

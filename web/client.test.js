@@ -24,3 +24,20 @@ test('WASM handshake, RGBX alpha and input wire bytes', () => {
   assert.throws(() => client.clipboard('😀'));
   client.free();
 });
+test('ExtendedDesktopSize: resize requests only after the server announces -308', () => {
+  const client = new BrowserClient();
+  const receive = b => client.receive(new Uint8Array(b));
+  receive(new TextEncoder().encode('RFB 003.008\n')); receive([1, 1]); receive([0, 0, 0, 0]);
+  const format = [32,24,0,1,0,255,0,255,0,255,0,8,16,0,0,0];
+  receive([0,1,0,1,...format,0,0,0,0]);
+  assert.equal(client.can_resize(), false);
+  assert.throws(() => client.resize(640, 480));
+  // One -308 rectangle: reason 0, status 0, 1x1, one screen (id 7, flags 0).
+  const events = receive([0,0,0,1, 0,0,0,0,0,1,0,1, 0xff,0xff,0xfe,0xcc, 1,0,0,0, 0,0,0,7, 0,0,0,0,0,1,0,1, 0,0,0,0]);
+  assert.ok(!events.some(e => e[0] === 'resize'));
+  assert.equal(client.can_resize(), true);
+  assert.deepEqual([...client.resize(640, 480)],
+    [251,0, 2,128,1,224, 1,0, 0,0,0,7, 0,0,0,0, 2,128,1,224, 0,0,0,0]);
+  assert.equal(client.resize_status(), undefined);
+  client.free();
+});

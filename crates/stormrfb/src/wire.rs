@@ -11,6 +11,11 @@ pub const LAST_RECT: i32 = -224;
 /// ([`Rectangle::QemuExtendedKey`]); after that the client may send
 /// [`ClientMessage::QemuKey`].
 pub const QEMU_EXTENDED_KEY: i32 = -258;
+/// ExtendedDesktopSize. A server that supports it sends a
+/// [`Rectangle::ExtendedDesktopSize`] in its next update, and then for every
+/// size or layout change in place of `DesktopSize`. After that the client
+/// may ask for a size with [`ClientMessage::SetDesktopSize`].
+pub const EXTENDED_DESKTOP_SIZE: i32 = -308;
 pub const ENCODINGS: &[i32] = &[
     ZRLE,
     HEXTILE,
@@ -19,8 +24,89 @@ pub const ENCODINGS: &[i32] = &[
     CURSOR,
     DESKTOP_SIZE,
     LAST_RECT,
+    EXTENDED_DESKTOP_SIZE,
     QEMU_EXTENDED_KEY,
 ];
+
+/// `reason` of a [`Rectangle::ExtendedDesktopSize`]: the server changed
+/// the size itself.
+pub const RESIZE_BY_SERVER: u16 = 0;
+/// The answer to this client's [`ClientMessage::SetDesktopSize`].
+pub const RESIZE_BY_CLIENT: u16 = 1;
+/// Another client's request changed the size.
+pub const RESIZE_BY_OTHER_CLIENT: u16 = 2;
+/// `status` of a [`Rectangle::ExtendedDesktopSize`]: no error.
+pub const RESIZE_OK: u16 = 0;
+/// The server does not let clients resize.
+pub const RESIZE_PROHIBITED: u16 = 1;
+/// The server could not make a framebuffer that large.
+pub const RESIZE_OUT_OF_RESOURCES: u16 = 2;
+/// The requested screen layout is not valid.
+pub const RESIZE_INVALID_LAYOUT: u16 = 3;
+
+/// One screen of an ExtendedDesktopSize layout: an area of the
+/// framebuffer a monitor shows. Single-head servers have one, covering
+/// the framebuffer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Screen {
+    pub id: u32,
+    pub rect: Rect,
+    pub flags: u32,
+}
+impl Screen {
+    /// One screen covering a `width` x `height` framebuffer.
+    pub fn whole(id: u32, width: u16, height: u16) -> Self {
+        Self {
+            id,
+            rect: Rect {
+                width,
+                height,
+                ..Rect::default()
+            },
+            flags: 0,
+        }
+    }
+}
+/// Whether `screens` is a layout a server can accept for a `width` x
+/// `height` framebuffer: one to 255 screens, each non-empty and inside the
+/// framebuffer, with distinct ids.
+pub fn valid_layout(width: u16, height: u16, screens: &[Screen]) -> bool {
+    !screens.is_empty()
+        && screens.len() <= 255
+        && width != 0
+        && height != 0
+        && screens.iter().enumerate().all(|(i, s)| {
+            s.rect.width != 0
+                && s.rect.height != 0
+                && s.rect.within(width, height)
+                && screens[..i].iter().all(|o| o.id != s.id)
+        })
+}
+/// number-of-screens, `padding` zero bytes, then the screens.
+pub(crate) fn put_screens(out: &mut Vec<u8>, screens: &[Screen], padding: usize) -> Result<()> {
+    out.push(u8::try_from(screens.len()).map_err(|_| Error::Limit)?);
+    out.extend(std::iter::repeat_n(0, padding));
+    for s in screens {
+        out.extend(s.id.to_be_bytes());
+        put_rect(out, s.rect);
+        out.extend(s.flags.to_be_bytes());
+    }
+    Ok(())
+}
+pub(crate) fn read_screens(r: &mut Reader<'_>, n: u8) -> Result<Vec<Screen>> {
+    r.data
+        .get(r.pos..r.pos + usize::from(n) * 16)
+        .ok_or(Error::Incomplete)?;
+    let mut v = Vec::with_capacity(usize::from(n));
+    for _ in 0..n {
+        v.push(Screen {
+            id: r.u32()?,
+            rect: r.rect()?,
+            flags: r.u32()?,
+        });
+    }
+    Ok(v)
+}
 
 /// The keycode [`ClientMessage::QemuKey`] carries for an XT (set 1)
 /// make code: the code itself, with bit 7 set for a key that has the 0xE0
@@ -62,6 +148,15 @@ pub enum ClientMessage {
         y: u16,
     },
     CutText(Vec<u8>),
+    /// SetDesktopSize (message 251): ask the server for a framebuffer size
+    /// and screen layout. Send only after the server sent an
+    /// [`EXTENDED_DESKTOP_SIZE`] rectangle; the answer is another one with
+    /// reason [`RESIZE_BY_CLIENT`]. At most 255 screens.
+    SetDesktopSize {
+        width: u16,
+        height: u16,
+        screens: Vec<Screen>,
+    },
 }
 impl ClientMessage {
     pub fn encode(&self, limits: Limits) -> Result<Vec<u8>> {
@@ -111,6 +206,16 @@ impl ClientMessage {
             Self::CutText(t) => {
                 b.extend([6, 0, 0, 0]);
                 put_text(&mut b, t, limits)?;
+            }
+            Self::SetDesktopSize {
+                width,
+                height,
+                screens,
+            } => {
+                b.extend([251, 0]);
+                b.extend(width.to_be_bytes());
+                b.extend(height.to_be_bytes());
+                put_screens(&mut b, screens, 1)?;
             }
         }
         if b.len() > limits.max_bytes {
@@ -162,6 +267,18 @@ impl ClientMessage {
             6 => {
                 r.take(3)?;
                 Self::CutText(r.text(limits)?)
+            }
+            251 => {
+                r.take(1)?;
+                let width = r.u16()?;
+                let height = r.u16()?;
+                let n = r.u8()?;
+                r.take(1)?;
+                Self::SetDesktopSize {
+                    width,
+                    height,
+                    screens: read_screens(&mut r, n)?,
+                }
             }
             // QEMU client messages; submessage 0 is the extended key event.
             255 => match r.u8()? {
