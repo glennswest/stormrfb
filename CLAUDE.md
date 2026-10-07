@@ -144,7 +144,9 @@ Part 2 (stale clippy/rustfmt line) was done in 13581c5.
       Playwright Chromium measures each `section` (scroll vs client box) and
       prints each slide as a base64 PNG line, so it can be looked at
 - [ ] first run (3931eb3) failed in silent npm setup after 12 min; bc15d04
-      makes each step print why; not run yet — dev down (stormcentral#517)
+      makes each step print why; not run yet — dev down (stormcentral#517),
+      then d3c55bc's run cancelled waiting for a slot (stormcentral#536).
+      The deck changed for #6 (06a29dc); the run covers it
 - [ ] split or trim any slide that overflows; rerun until none does
 
 ### Done — #1 QEMU Extended Key Event (-258), v0.2.0 (2026-10-06)
