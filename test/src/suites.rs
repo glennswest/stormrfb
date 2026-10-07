@@ -29,7 +29,9 @@ pub fn short(env: &Env, r: &mut Report) {
     let _ = env;
     r.run("loopback-session", loopback_session);
     r.run("vnc-auth", vnc_auth);
-    r.run("fixture-qemu", || fixture(QEMU, 720, 400, 0x06133f0cfae0b305));
+    r.run("fixture-qemu", || {
+        fixture(QEMU, 720, 400, 0x06133f0cfae0b305)
+    });
     r.run("fixture-tigervnc", || {
         fixture(TIGERVNC, 73, 69, 0x091a3de23b92f334)
     });
@@ -136,7 +138,10 @@ fn vnc_auth() -> Outcome {
         Ok(_) => fail!("wrong password admitted"),
     }
     if wrong.served.frames != 0 {
-        fail!("wrong password: the server sent {} frames", wrong.served.frames);
+        fail!(
+            "wrong password: the server sent {} frames",
+            wrong.served.frames
+        );
     }
     let none = match session::run(&scene, secure(), Limits::default(), vec![], |s| {
         session::client(s, None, Limits::default(), &[], None)
@@ -430,22 +435,45 @@ fn hostile_client_bytes() -> Outcome {
         ("version 3.3", b"RFB 003.003\n".to_vec(), Some("Invalid")),
         ("65535x65535 ServerInit", huge_init, Some("Limit")),
         ("4 GiB server cut text", huge_cut, Some("Limit")),
-        ("rectangle off the screen", update(1, [rect(60, 40, 8, 8, RAW), vec![0; 256]].concat()), None),
-        ("65535 rectangles", update(65535, [rect(0, 0, 1, 1, RAW), vec![0; 4]].concat().repeat(4097)), Some("Limit")),
-        ("unknown encoding", update(1, rect(0, 0, 1, 1, 0x7777)), None),
+        (
+            "rectangle off the screen",
+            update(1, [rect(60, 40, 8, 8, RAW), vec![0; 256]].concat()),
+            None,
+        ),
+        (
+            "65535 rectangles",
+            update(
+                65535,
+                [rect(0, 0, 1, 1, RAW), vec![0; 4]].concat().repeat(4097),
+            ),
+            Some("Limit"),
+        ),
+        (
+            "unknown encoding",
+            update(1, rect(0, 0, 1, 1, 0x7777)),
+            None,
+        ),
         ("4 GiB ZRLE length", update(1, zrle_len), Some("Limit")),
         ("corrupt zlib", update(1, bad_zlib), None),
-        ("copyrect from off the screen", {
-            let mut r = rect(0, 0, 8, 8, COPY_RECT);
-            r.extend(1000u16.to_be_bytes());
-            r.extend(1000u16.to_be_bytes());
-            update(1, r)
-        }, None),
-        ("unknown message type", {
-            let mut b = handshake_prefix();
-            b.push(0x7f);
-            b
-        }, None),
+        (
+            "copyrect from off the screen",
+            {
+                let mut r = rect(0, 0, 8, 8, COPY_RECT);
+                r.extend(1000u16.to_be_bytes());
+                r.extend(1000u16.to_be_bytes());
+                update(1, r)
+            },
+            None,
+        ),
+        (
+            "unknown message type",
+            {
+                let mut b = handshake_prefix();
+                b.push(0x7f);
+                b
+            },
+            None,
+        ),
     ];
     let mut kinds = vec![];
     for (name, bytes, want) in cases {
@@ -493,30 +521,46 @@ fn hostile_server_bytes() -> Outcome {
     }
     let cases: Vec<(&str, Vec<u8>, &str)> = vec![
         ("version 3.3", b"RFB 003.003\n".to_vec(), "requires RFB 3.8"),
-        ("security type 9", {
-            let mut b = VERSION.to_vec();
-            b.push(9);
-            b
-        }, "Authentication"),
-        ("shared flag 7", {
-            let mut b = VERSION.to_vec();
-            b.extend([1, 7]);
-            b
-        }, "shared flag"),
+        (
+            "security type 9",
+            {
+                let mut b = VERSION.to_vec();
+                b.push(9);
+                b
+            },
+            "Authentication",
+        ),
+        (
+            "shared flag 7",
+            {
+                let mut b = VERSION.to_vec();
+                b.extend([1, 7]);
+                b
+            },
+            "shared flag",
+        ),
         ("65535 encodings", after_init(&set_encodings), "Limit"),
         ("4 GiB client cut text", after_init(&huge_cut), "Limit"),
-        ("update request off the screen", after_init(&off_screen), "bounds"),
+        (
+            "update request off the screen",
+            after_init(&off_screen),
+            "bounds",
+        ),
         ("unknown message type", after_init(&[0x7f]), "Unsupported"),
-        ("key down = 2", after_init(&[4, 2, 0, 0, 0, 0, 0, 1]), "boolean"),
+        (
+            "key down = 2",
+            after_init(&[4, 2, 0, 0, 0, 0, 0, 1]),
+            "boolean",
+        ),
     ];
     let mut seen = vec![];
     for (name, bytes, want) in cases {
         let scene = Scene::new(64, 48, 0);
-        let (addr, handle) =
-            match session::listen(scene, Security::None, Limits::default(), vec![]) {
-                Ok(v) => v,
-                Err(e) => return io(e),
-            };
+        let (addr, handle) = match session::listen(scene, Security::None, Limits::default(), vec![])
+        {
+            Ok(v) => v,
+            Err(e) => return io(e),
+        };
         let mut s = match TcpStream::connect(addr) {
             Ok(s) => s,
             Err(e) => return io(e),
@@ -689,7 +733,10 @@ pub fn parallel(n: usize, frames: u32, seed: u32) -> Result<Vec<f64>, String> {
         .collect();
     let mut out = vec![];
     for h in handles {
-        out.push(h.join().map_err(|_| "session thread panicked".to_string())??);
+        out.push(
+            h.join()
+                .map_err(|_| "session thread panicked".to_string())??,
+        );
     }
     Ok(out)
 }

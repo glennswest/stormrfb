@@ -103,12 +103,10 @@ Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
 
 - [x] fix clippy's `is_multiple_of` at test/src/session.rs:80 (5d41ca4);
       sc-build at 15efd10: test crate clippy -D warnings passes
-- [ ] rustfmt `test/`: at 15efd10 `fmt --check` failed but `cargo fmt`
-      left no git diff; next run prints the check's own output
+- [x] rustfmt `test/`: the build VM at e2cfdc8 printed the check's diff
+      (8 hunks); applied by hand, as there is no toolchain on this VM
 - [x] README "Build and test": the test crate's clippy and fmt commands
 - [ ] sc-build: workspace + test crate clippy -D warnings and fmt --check
-- BLOCKED 2026-10-07 ~12:20Z: dev.g8.lo unreachable (stormcentral#517, P0);
-  both items proposed --after it
 
 ### Active — #11 slide overflow (2026-10-06)
 

@@ -112,8 +112,7 @@ impl Scene {
 }
 
 fn mix(seed: u32, k: u32, x: u32, y: u32) -> u32 {
-    let mut v = seed
-        .wrapping_mul(0x9e37_79b9)
+    let mut v = seed.wrapping_mul(0x9e37_79b9)
         ^ k.wrapping_mul(0x85eb_ca6b)
         ^ x.wrapping_mul(0xc2b2_ae35)
         ^ y.wrapping_mul(0x27d4_eb2f);

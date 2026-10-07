@@ -57,16 +57,24 @@ pub fn run(env: &Env, r: &mut Report) {
                 let base = *base.get_or_insert(after);
                 let mut why = vec![];
                 if m > first * SLOWER && m - first > NOISE_MS {
-                    why.push(format!("{m:.3} ms/frame vs {first:.3} in the first wave of {n}"));
+                    why.push(format!(
+                        "{m:.3} ms/frame vs {first:.3} in the first wave of {n}"
+                    ));
                 }
                 // The allocator may keep some of a wave; growth past a
                 // quarter of the first drain (at least 64 MiB) is a leak.
                 let slack = (base.rss_kb / 4).max(64 * 1024);
                 if after.rss_kb > base.rss_kb + slack {
-                    why.push(format!("RSS {} KiB after drain vs {} KiB", after.rss_kb, base.rss_kb));
+                    why.push(format!(
+                        "RSS {} KiB after drain vs {} KiB",
+                        after.rss_kb, base.rss_kb
+                    ));
                 }
                 if after.threads > base.threads {
-                    why.push(format!("{} threads left vs {}", after.threads, base.threads));
+                    why.push(format!(
+                        "{} threads left vs {}",
+                        after.threads, base.threads
+                    ));
                 }
                 if after.fds > base.fds {
                     why.push(format!("{} fds left vs {}", after.fds, base.fds));
