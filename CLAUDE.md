@@ -99,6 +99,14 @@ Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
       stormcentral#63 blocks the runner (#56 closed 2026-09-28); dated
       done-items above keep #56 as history. #10's title and body updated
 
+### Waiting on owner — #7 ContinuousUpdates + Fence (2026-10-07)
+
+The issue makes the work conditional on phase 1 showing latency as the
+bottleneck. #4 measured bytes and decode+paint ms/frame on a LAN, not
+request/response latency, so the condition is unanswered. Asked on #7
+(`needs-owner`): build now / measure with an injected RTT first / defer.
+Nothing built yet.
+
 ### Active — #6 ExtendedDesktopSize (-308) + SetDesktopSize (2026-10-07)
 
 - [x] codec: `EXTENDED_DESKTOP_SIZE` in `ENCODINGS` (before -258, which
