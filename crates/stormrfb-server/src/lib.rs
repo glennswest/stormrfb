@@ -362,13 +362,12 @@ impl Server {
             self.ack_extended_keys = false;
             self.extended_keys_acked = true;
         }
-        if let Some(rect) = rect {
-            if self
+        if let Some(rect) = rect
+            && self
                 .dirty
                 .is_some_and(|dirty| intersection(dirty, rect) == Some(dirty))
-            {
-                self.dirty = None;
-            }
+        {
+            self.dirty = None;
         }
         self.request = None;
         Ok(Some(bytes))
