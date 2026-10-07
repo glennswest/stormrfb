@@ -74,6 +74,13 @@ at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
 (#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
 overflow, #12 test-crate lint.
 
+### Active — #12 test-crate lint (2026-10-07)
+
+- [ ] fix clippy's `is_multiple_of` at test/src/session.rs:80
+- [ ] rustfmt `test/` (diff taken from sc-build, applied here)
+- [ ] README "Build and test": the test crate's clippy and fmt commands
+- [ ] sc-build: workspace + test crate clippy -D warnings and fmt --check
+
 ### Active — #11 slide overflow (2026-10-06)
 
 Part 2 (stale clippy/rustfmt line) was done in 13581c5.
