@@ -99,6 +99,23 @@ Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
       stormcentral#63 blocks the runner (#56 closed 2026-09-28); dated
       done-items above keep #56 as history. #10's title and body updated
 
+### Active — #6 ExtendedDesktopSize (-308) + SetDesktopSize (2026-10-07)
+
+- [ ] codec: `EXTENDED_DESKTOP_SIZE` in `ENCODINGS` (before -258, which
+      stays last); `Screen`; `Rectangle::ExtendedDesktopSize { reason,
+      status, width, height, screens }`; `ClientMessage::SetDesktopSize`
+      (251); encode + decode; reason/status constants
+- [ ] client: `desktop_resize()` (any -308 seen), `request_resize(w, h)`,
+      `resize_status()`, `screens()`; same-size layouts do not resize.
+      Client `Event` unchanged (stormrdp matches it exhaustively)
+- [ ] server: acks -308 once; `resize` sends -308 when negotiated;
+      `Event::SetDesktopSize`, `accept_resize`/`refuse_resize`; requests
+      that do not fit Limits or have a bad layout are refused (2/3) without
+      an event; one reply per update, latest answer wins (bounded)
+- [ ] wasm `resize`/`can_resize`; web `connect()` returns `resize(w, h)`
+- [ ] tests; docs (README, DESIGN, VALIDATION, deck); CHANGELOG; v0.3.0
+- [ ] sc-build (blocked while stormcentral#536 cancels queued jobs)
+
 ### Active — #12 test-crate lint (2026-10-07)
 
 - [x] fix clippy's `is_multiple_of` at test/src/session.rs:80 (5d41ca4);
