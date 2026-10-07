@@ -42,7 +42,7 @@ package (`web/src/lib/vendor/stormrfb/VERSION`), and stormrdp pins the
 crates by git rev. Consumers pick up a change only by bumping their pin.
 The stormcos test image (`test/`, `/test short|medium|long`) is built and
 run by stormcentral's test runner, and has not completed a run there yet
-(#10: stormcentral#56, #63).
+(#10: stormcentral#63; #56 was fixed 2026-09-28).
 
 ## Conventions
 
@@ -73,6 +73,12 @@ the code in #2 and refreshed 2026-09-27. Consumers: stormconsole (opt-in
 at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
 (#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
 overflow, #12 test-crate lint.
+
+### Done — #13 stormcentral#56 references (2026-10-07)
+
+- [x] README, CLAUDE.md shipping line, presentation (2 places): only
+      stormcentral#63 blocks the runner (#56 closed 2026-09-28); dated
+      done-items above keep #56 as history. #10's title and body updated
 
 ### Active — #12 test-crate lint (2026-10-07)
 
