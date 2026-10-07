@@ -76,17 +76,23 @@ overflow, #12 test-crate lint.
 
 ### Active — #12 test-crate lint (2026-10-07)
 
-- [ ] fix clippy's `is_multiple_of` at test/src/session.rs:80
-- [ ] rustfmt `test/` (diff taken from sc-build, applied here)
-- [ ] README "Build and test": the test crate's clippy and fmt commands
+- [x] fix clippy's `is_multiple_of` at test/src/session.rs:80 (5d41ca4);
+      sc-build at 15efd10: test crate clippy -D warnings passes
+- [ ] rustfmt `test/`: at 15efd10 `fmt --check` failed but `cargo fmt`
+      left no git diff; next run prints the check's own output
+- [x] README "Build and test": the test crate's clippy and fmt commands
 - [ ] sc-build: workspace + test crate clippy -D warnings and fmt --check
+- BLOCKED 2026-10-07 ~12:20Z: dev.g8.lo unreachable (stormcentral#517, P0);
+  both items proposed --after it
 
 ### Active — #11 slide overflow (2026-10-06)
 
 Part 2 (stale clippy/rustfmt line) was done in 13581c5.
-- [ ] `tools/check-slides.sh` + `tools/slides.browser.cjs`: Marp → HTML,
+- [x] `tools/check-slides.sh` + `tools/slides.browser.cjs`: Marp → HTML,
       Playwright Chromium measures each `section` (scroll vs client box) and
       prints each slide as a base64 PNG line, so it can be looked at
+- [ ] first run (3931eb3) failed in silent npm setup after 12 min; bc15d04
+      makes each step print why; not run yet — dev down (stormcentral#517)
 - [ ] split or trim any slide that overflows; rerun until none does
 
 ### Done — #1 QEMU Extended Key Event (-258), v0.2.0 (2026-10-06)

@@ -3,6 +3,11 @@
 ## [Unreleased]
 <!-- New unreleased changes go here -->
 
+### 2026-10-07
+- **fix:** `test/`: `is_multiple_of` where clippy asked for it; the test crate passes `clippy -D warnings` (#12)
+- **docs:** README "Build and test" lists the test crate's clippy and fmt commands (it is its own workspace), and the suite is 29 tests (#12)
+- **test:** `tools/check-slides.sh` + `tools/slides.browser.cjs`: Marp renders the deck, and headless Chromium measures every slide for overflow and prints it as a PNG in the log (#11)
+
 ## [v0.2.0] — 2026-10-06
 
 ### Added
