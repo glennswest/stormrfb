@@ -74,6 +74,14 @@ at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
 (#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
 overflow, #12 test-crate lint.
 
+### Active — #11 slide overflow (2026-10-06)
+
+Part 2 (stale clippy/rustfmt line) was done in 13581c5.
+- [ ] `tools/check-slides.sh` + `tools/slides.browser.cjs`: Marp → HTML,
+      Playwright Chromium measures each `section` (scroll vs client box) and
+      prints each slide as a base64 PNG line, so it can be looked at
+- [ ] split or trim any slide that overflows; rerun until none does
+
 ### Done — #1 QEMU Extended Key Event (-258), v0.2.0 (2026-10-06)
 
 - [x] codec: `QEMU_EXTENDED_KEY` last in `ENCODINGS`; `ClientMessage::QemuKey`
