@@ -78,7 +78,8 @@ client big.
 As built: all of the above. `SetColourMapEntries` is decoded but has no
 effect, since colour-map pixel formats are rejected and the client pins
 true colour. The server encoder emits Raw, and Hextile and ZRLE with
-raw tiles only; smarter tile subencodings are not built.
+each tile's subencoding chosen by size (solid, palette, RLE,
+subrectangles; raw only when nothing is smaller, #5).
 
 `Raw` alone is enough to see a screen and is the correctness baseline every
 other encoding is diffed against. `ZRLE` is what makes it usable over a

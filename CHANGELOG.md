@@ -4,6 +4,7 @@
 <!-- New unreleased changes go here -->
 
 ### 2026-10-07
+- **feat:** `ServerEncoder` chooses each tile's subencoding by size instead of sending raw tiles (#5). Hextile: background only (an empty tile when the background carries), one foreground in subrectangles, coloured subrectangles, raw when no smaller; bg/fg are respecified after a raw tile, fg after a coloured one. ZRLE: smallest of solid, packed palette (1/2/4-bit), plain RLE, palette RLE and raw per 64×64 tile. Colours are compared as wire pixels, so formats that merge colours (16 bpp) merge them in tiles too. Unit tests check each choice and round-trip eight scenes × five sizes × four pixel formats through the decoders
 - **docs:** stormcentral#56 (the runner's image step) was closed on 2026-09-28, so README, CLAUDE.md and the deck now name only stormcentral#63 as what keeps the test image from running through the runner (stormcentral#57 still keeps `/results`). #10's title was updated to match (#13, stormcos#65)
 - **fix:** `test/`: `is_multiple_of` where clippy asked for it; the test crate passes `clippy -D warnings` (#12)
 - **docs:** README "Build and test" lists the test crate's clippy and fmt commands (it is its own workspace), and the suite is 29 tests (#12)

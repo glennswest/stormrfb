@@ -88,7 +88,7 @@ From `crates/stormrfb/src`:
 | Pixel formats | true colour, 16/32 bpp, both byte orders. Colour maps are rejected |
 | Decoded encodings | Raw, CopyRect, Hextile, ZRLE (one persistent zlib stream) |
 | Pseudo-encodings | Cursor (-239), DesktopSize (-223), LastRect (-224) |
-| Encoder | Raw, Hextile (raw tiles only), ZRLE (raw subencoding only), and CopyRect, Cursor, DesktopSize rectangles |
+| Encoder | Raw, Hextile and ZRLE (tile subencodings chosen by size), and CopyRect, Cursor, DesktopSize rectangles |
 
 The client advertises `ZRLE, Hextile, CopyRect, Raw, Cursor, DesktopSize, LastRect`.
 

@@ -23,8 +23,8 @@ see §Reproduce.)
   to native consumers; the browser uses the same framebuffer through its ABI.
 - `stormrfb-server`: per-connection handshake/authentication, input events,
   framebuffer damage, full/incremental requested updates, negotiated pixel
-  format/encoding and DesktopSize. Raw, raw-tile Hextile and raw-tile ZRLE
-  encoding are supported; optimized palette selection is future work.
+  format/encoding and DesktopSize. Raw, Hextile and ZRLE are supported; each
+  Hextile and ZRLE tile's subencoding is chosen by size (#5).
 - `stormrfb-wasm` and `web/`: private browser package, canvas ImageData views
   into WASM memory, dirty-region paint, view recreation on memory growth,
   pointer capture, wheel, keyboard release on blur, clipboard callbacks and

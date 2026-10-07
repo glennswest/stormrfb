@@ -52,7 +52,7 @@ Every crate has `publish = false`. Rust edition 2024, `rust-version = 1.85`.
 | Server → client | `FramebufferUpdate`, `SetColourMapEntries` (decoded; the client ignores it), `Bell`, `ServerCutText` |
 | Decoded encodings | Raw (0), CopyRect (1), Hextile (5), ZRLE (16, one persistent zlib stream per connection) |
 | Pseudo-encodings | Cursor (-239), DesktopSize (-223), LastRect (-224), QEMU Extended Key Event (-258) |
-| Encoder (`ServerEncoder::update`) | Raw, Hextile and ZRLE. Hextile emits only raw tiles, and ZRLE only raw (subencoding 0) tiles, deflated with `Compression::fast()`. Also encodes CopyRect, Cursor, DesktopSize and the -258 acknowledgement |
+| Encoder (`ServerEncoder::update`) | Raw, Hextile and ZRLE, choosing each tile's subencoding by size (#5). Hextile: background only (nothing when the previous tile's background carries), one foreground in subrectangles, coloured subrectangles, or raw. ZRLE: the smallest of solid, packed palette, plain RLE, palette RLE and raw per 64×64 tile, deflated with `Compression::fast()`. Colours are compared as wire pixels. Also encodes CopyRect, Cursor, DesktopSize and the -258 acknowledgement |
 | Not implemented | RFB 3.3/3.7, TRLE (15) as an advertised encoding, Tight/JPEG/H.264, ExtendedDesktopSize (-308), ContinuousUpdates (-313)/Fence (-312), XCursor (-240), colour-map pixel formats |
 
 `ENCODINGS`, the list the client advertises, in preference order, is
