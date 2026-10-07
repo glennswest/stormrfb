@@ -77,14 +77,19 @@ overflow, #12 test-crate lint.
 ### Active — #5 real Hextile/ZRLE tile subencodings (2026-10-07)
 
 Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
-- [ ] `tiles.rs` encoder side: Hextile per tile (bg-only, carried bg,
+- [x] `tiles.rs` encoder side: Hextile per tile (bg-only, carried bg,
       fg + subrects, coloured subrects, raw when smaller); ZRLE per tile
       (smallest of solid, packed palette, plain RLE, palette RLE, raw).
       Colours compared as wire pixels, so 16 bpp quantization is exact
-- [ ] unit tests: each subencoding chosen and round-trips; fuzz-ish
-      random tiles round-trip in every test/ pixel format
-- [ ] sc-build: workspace tests, clippy, fmt; test/ medium for bytes/frame
-- [ ] docs (README, server crate doc, VALIDATION, DESIGN), CHANGELOG
+      (0ac0c54)
+- [x] unit tests in tiles.rs: each subencoding chosen; 8 scenes × 5 sizes
+      × 4 pixel formats round-trip through the decoders (0ac0c54)
+- [ ] sc-build: workspace tests, clippy, fmt; test/ medium for bytes/frame.
+      dev is gone (stormcentral#107): `SC_BUILD_VM=1 sc-build` runs on a
+      fresh build VM; follow a job with `stormcentral buildvm log <id>`.
+      First job c7157f9ad2 (0ac0c54, fmt + diff + clippy + test) queued
+- [x] docs (README, server crate doc, VALIDATION, DESIGN, deck), CHANGELOG
+      (98ae1fc); VALIDATION's bytes/frame number waits on the medium run
 
 ### Done — #13 stormcentral#56 references (2026-10-07)
 
