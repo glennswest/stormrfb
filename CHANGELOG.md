@@ -1,6 +1,17 @@
 # Changelog
 
 ## [Unreleased]
+<!-- New unreleased changes go here -->
+
+## [v0.2.0] — 2026-10-06
+
+### Added
+- QEMU Extended Key Event (-258): `ClientMessage::QemuKey`, `qemu_keycode`, `Rectangle::QemuExtendedKey`, `Client::extended_keys`/`key_event`, `stormrfb-server` `Event::QemuKey` and its acknowledgement (#1)
+- `tools/verify-relay.sh` (real guests through stormconsole's relay, #4) and `tools/verify-extkey.sh` (scancodes against a real qemu, #1)
+
+### Breaking
+- Public enums gained variants: `stormrfb::ClientMessage::QemuKey`, `stormrfb::Rectangle::QemuExtendedKey`, `stormrfb_server::Event::QemuKey`. `ENCODINGS` gained `QEMU_EXTENDED_KEY`. `stormrfb_client::Event` is unchanged
+
 
 ### 2026-10-06 (QEMU Extended Key Event, #1)
 - **feat:** `stormrfb`: `QEMU_EXTENDED_KEY` (-258) is advertised last in `ENCODINGS`. New `ClientMessage::QemuKey { down, keysym, keycode }` (message 255, submessage 0; encode and decode, with other submessages refused and the down flag checked). `qemu_keycode(make_code, extended)` builds the keycode with the 0xE0 prefix as bit 7, as qemu and noVNC use it. New `Rectangle::QemuExtendedKey`, the server's acknowledgement, decoded as qemu sends it and encoded by `ServerEncoder`

@@ -12,7 +12,7 @@ paginate: true
 A set of crates, not a service: a sans-I/O codec, a client, a server
 session and a WASM/canvas binding for the browser.
 
-v0.1.1 · private, nothing published · `npx @marp-team/marp-cli docs/presentation.md`
+v0.2.0 · private, nothing published · `npx @marp-team/marp-cli docs/presentation.md`
 
 ---
 
@@ -201,8 +201,8 @@ All crates are `publish = false`, edition 2024, rust-version 1.85.
 
 | Issue | What |
 |---|---|
-| #4 | Phase 1 exit: a Linux guest and a Windows installer driven through the stormconsole relay. Only then can noVNC stop being the default |
-| #1 | QEMU Extended Key Event (-258): raw scancodes, asked for by stormrdp |
+| #16 | The browser sends scancodes (`KeyboardEvent.code` → QemuKey). Needs the WASM tools on the build box |
+| stormconsole#99 | stormconsole makes stormrfb the default and removes noVNC (#4's gate passed) |
 | #5 | Server encoder: real Hextile/ZRLE tile subencodings (solid, palette, RLE) |
 | #6 | ExtendedDesktopSize (-308): the client asks for a resize |
 | #7 | Phase 4 latency: ContinuousUpdates (-313) and Fence (-312) |
@@ -215,14 +215,15 @@ secured a layer up), and a shipped native viewer (DESIGN.md decision 3).
 
 ## Status
 
-- **v0.1.1.** The crate code is unchanged since the 2026-09-09 performance
-  patch. The docs were rewritten from the code (#2) and refreshed on
-  2026-09-27. The stormcos test image landed in #8.
+- **v0.2.0 (2026-10-06).** QEMU Extended Key Event (#1) was checked
+  against a real qemu. The phase 1 gate (#4) passed: Alpine and a Windows
+  Server installer were pixel-exact and driven through stormconsole's
+  relay, level with noVNC per frame, from a chunk half noVNC's size.
 - **Consumers:** stormconsole (opt-in, noVNC default) and stormrdp, both at
-  `29305ab`, which has the same crate code as `main`.
+  `29305ab`. They need a pin bump to get #1.
 - **Open issues that matter:**
-  - #4 decides whether stormconsole can drop noVNC
-  - #1 unblocks raw scancodes for stormrdp
+  - stormconsole#99 switches the default and drops noVNC
+  - #16 sends scancodes from the browser too
   - #10 re-runs the test image through stormcentral's runner once
     stormcentral#56 and #63 are fixed
   - stormcentral#64 installs the WASM and fuzz tools on the build box,

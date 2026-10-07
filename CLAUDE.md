@@ -4,8 +4,8 @@ RFB (RFC 6143) in Rust: the codec, a client for the browser, a server for
 the Rust VMM. Read [docs/DESIGN.md](docs/DESIGN.md) before touching
 anything. See [docs/VALIDATION.md](docs/VALIDATION.md) for measured status.
 
-**Version: 0.1.1** — private initial implementation; downstream gates remain open. Version locations: `Cargo.toml`, `Cargo.lock`, `fuzz/Cargo.toml`,
-`fuzz/Cargo.lock`, `web/package.json`, this file.
+**Version: 0.2.0** — private; phase 1 real-guest gate passed (#4), QEMU Extended Key Event (#1). Version locations: `Cargo.toml`, `Cargo.lock`, `fuzz/Cargo.toml`,
+`fuzz/Cargo.lock`, `test/Cargo.lock` (path deps), `web/package.json`, this file.
 
 ## What this is for, in one line each
 

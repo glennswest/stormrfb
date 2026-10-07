@@ -5,7 +5,7 @@
 The wire protocol behind VNC, as a library: a codec that never touches a
 socket, a client that turns a byte stream into an RGBA framebuffer, a server
 session that turns a framebuffer and damage into updates, and a WASM/canvas
-binding for the browser. Private, version **0.1.1**, nothing published.
+binding for the browser. Private, version **0.2.0**, nothing published.
 
 It is a set of crates, not a service: **no daemon, no ports, no config
 file, no health or metrics endpoints.** The one runnable thing it ships is
