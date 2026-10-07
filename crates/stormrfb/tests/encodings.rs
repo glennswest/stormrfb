@@ -169,7 +169,13 @@ fn inflated_data_is_bounded_and_failure_is_terminal() {
             height: 64,
             ..Rect::default()
         },
-        pixels: vec![[0, 0, 0, 255]; 4096],
+        // Noise, so the encoder sends the tile raw: 12 KiB once inflated.
+        pixels: (0..4096u32)
+            .map(|i| {
+                let v = i.wrapping_mul(2654435761).to_le_bytes();
+                [v[3], v[2], v[1], 255]
+            })
+            .collect(),
     };
     let mut b = ServerEncoder::new(Limits::default())
         .update(&[r], PixelFormat::RGBX, ZRLE)
