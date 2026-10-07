@@ -145,8 +145,22 @@ suites, all run through `sc-build` on dev.g8.lo (8 vCPUs, 13 GiB free) at
 2026-09-27, dev.g8.lo, 8 vCPUs). A 640×480 window moves across 1920×1080.
 One `stormrfb-server` and one `stormrfb-client` share the machine over
 loopback TCP, with ZRLE: 300 frames exact in 4.57 s, which is **66 fps,
-8.6 MB/s and 131,640 bytes/frame**. This is the protocol half of the phase 2
-measurement. A guest behind stormvm's display is still pending stormvm#1.
+8.6 MB/s and 131,640 bytes/frame**, with every ZRLE tile raw. This is the
+protocol half of the phase 2 measurement. A guest behind stormvm's display
+is still pending stormvm#1.
+
+**With tile subencodings chosen by size** (#5, 2026-10-07, `8c3b91e`, a
+fresh build VM: 8 cores, 7 GB, Fedora 43, `SC_BUILD_VM=1 sc-build`). The
+same test: 300 frames exact in 4.94 s, **61 fps, 3.7 MB/s, 61,788
+bytes/frame**, 53% fewer bytes than the raw tiles. fps is level within
+the difference between the two machines. `encodings-and-formats` (short and
+medium) is exact in all 12 encoding × format pairs; its 200x150 scene went
+to 128,590 B (Hextile) and 89,852 B (ZRLE) at 32 bpp against 172,009 B raw,
+and to 40,820 / 23,929 B at rgb565le against 86,109 B. Short 5/5, medium
+14 + 1 skip (`real-server`), exit 0. The noVNC differential
+(`tools/validate.sh`) was not rerun for this change: it needs the wasm32
+target and `wasm-bindgen`, which the build user did not have on dev
+(stormcentral#64).
 
 ## Real guests through stormconsole's relay — 2026-10-06 (#4)
 

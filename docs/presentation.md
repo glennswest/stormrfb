@@ -203,7 +203,6 @@ All crates are `publish = false`, edition 2024, rust-version 1.85.
 |---|---|
 | #16 | The browser sends scancodes (`KeyboardEvent.code` → QemuKey). Needs the WASM tools on the build box |
 | stormconsole#99 | stormconsole makes stormrfb the default and removes noVNC (#4's gate passed) |
-| #5 | Server encoder: real Hextile/ZRLE tile subencodings (solid, palette, RLE) |
 | #6 | ExtendedDesktopSize (-308): the client asks for a resize |
 | #7 | Phase 4 latency: ContinuousUpdates (-313) and Fence (-312) |
 | stormvm#1 | The Rust-VMM display that `stormrfb-server` exists for. That work is stormvm's |
