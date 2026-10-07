@@ -98,6 +98,7 @@ impl Server {
             height: init.height,
             ..Rect::default()
         });
+        let screens = vec![Screen::whole(0, init.width, init.height)];
         Ok(Self {
             state: State::Version,
             format: init.format,
@@ -113,7 +114,7 @@ impl Server {
             pending_resize: false,
             ack_extended_keys: false,
             extended_keys_acked: false,
-            screens: vec![Screen::whole(0, init.width, init.height)],
+            screens,
             announce_layout: false,
             requested: None,
             resize_reply: None,
