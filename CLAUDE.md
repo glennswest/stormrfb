@@ -59,6 +59,7 @@ run by stormcentral's test runner, and has not completed a run there yet
 
 ### Status (2026-10-06)
 
+v0.2.0: #1 done (QEMU Extended Key Event, checked against a real qemu).
 #4 done: phase 1's real-guest gate passed through stormconsole's relay
 (`sc-build tools/verify-relay.sh`, docs/VALIDATION.md). Removing noVNC is
 stormconsole#99.
@@ -73,24 +74,20 @@ at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
 (#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
 overflow, #12 test-crate lint.
 
-### Active — #1 QEMU Extended Key Event (-258) (2026-10-06)
+### Done — #1 QEMU Extended Key Event (-258), v0.2.0 (2026-10-06)
 
-- [ ] codec: `QEMU_EXTENDED_KEY = -258` appended to `ENCODINGS`;
-      `ClientMessage::QemuKey { down, keysym, keycode }` (255/0, u16 down,
-      keysym, keycode); `qemu_keycode(scancode, extended)` folds the 0xE0
-      prefix into bit 7 (qemu's "number", as noVNC sends it);
-      `Rectangle::QemuExtendedKey`, the server's acknowledgement
-- [ ] client: `extended_keys()` set by the ack (no new `Event` variant:
-      stormrdp matches `Event` exhaustively); `send(QemuKey)` before the
-      ack is `Unsupported(-258)`; `key_event(down, keysym, keycode)` picks
-- [ ] server: decodes `QemuKey` → `Event::QemuKey`; acks -258 in the next
-      update when the client advertised it
-- [ ] tests: round trip/fragmentation, hostile values, client↔server ack;
-      a real qemu check (`tools/verify-extkey.sh`: Alpine, keys sent with
-      keysym 0 and scancodes only, shell output lands on the serial log)
-- [ ] docs, CHANGELOG, 0.2.0 (public enums gain variants); browser
-      (`KeyboardEvent.code`) is a follow-up: WASM cannot be rebuilt via
-      sc-build (stormcentral#64)
+- [x] codec: `QEMU_EXTENDED_KEY` last in `ENCODINGS`; `ClientMessage::QemuKey`
+      (255/0, u16 down, keysym, keycode); `qemu_keycode` (0xE0 → bit 7);
+      `Rectangle::QemuExtendedKey` decoded and encoded
+- [x] client: `extended_keys()`, `send(QemuKey)` gated, `key_event`
+      (client `Event` unchanged — stormrdp matches it exhaustively)
+- [x] server: `Event::QemuKey`; acks -258 once in the next update
+- [x] tests (29 workspace tests at cabbc5a/66b39c8); `tools/verify-extkey.sh`
+      green at ac4d991 against qemu 10.1.5: scancode-only typing ran a
+      command (STORMRFB-EXTKEY-42 on serial), keysym `poweroff` worked.
+      Found: qemu lower-cases uppercase keysyms on a graphic console
+- [x] docs; v0.2.0 tagged at 66b39c8 (test/ short 5/5, medium 14+1 skip);
+      browser follow-up #16 (blocked on stormcentral#64)
 
 ### Done — #4 phase 1 exit through the relay (2026-10-06)
 
