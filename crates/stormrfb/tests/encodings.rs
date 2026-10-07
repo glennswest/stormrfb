@@ -208,3 +208,55 @@ fn qemu_extended_key_ack_as_qemu_sends_it() {
     assert_eq!(QEMU_EXTENDED_KEY, -258);
     assert_eq!(ENCODINGS.last(), Some(&QEMU_EXTENDED_KEY));
 }
+#[test]
+fn extended_desktop_size_roundtrips_and_is_bounded() {
+    let eds = Rectangle::ExtendedDesktopSize {
+        reason: RESIZE_BY_CLIENT,
+        status: RESIZE_OUT_OF_RESOURCES,
+        width: 1024,
+        height: 768,
+        screens: vec![Screen::whole(9, 1024, 768)],
+    };
+    let b = ServerEncoder::new(Limits::default())
+        .update(std::slice::from_ref(&eds), PixelFormat::RGBX, RAW)
+        .unwrap();
+    // Header, rectangle (x = reason, y = status), -308, number-of-screens
+    // and three bytes of padding, one 16-byte screen.
+    assert_eq!(b.len(), 4 + 12 + 4 + 16);
+    assert_eq!(&b[4..16], &[0, 1, 0, 2, 4, 0, 3, 0, 0xff, 0xff, 0xfe, 0xcc]);
+    assert_eq!(&b[16..20], &[1, 0, 0, 0]);
+    let mut d = ServerDecoder::new(PixelFormat::RGBX, Limits::default()).unwrap();
+    assert_eq!(
+        decode_all(&mut d, &b),
+        vec![
+            ServerEvent::UpdateStart,
+            ServerEvent::Rectangle(eds),
+            ServerEvent::UpdateEnd
+        ]
+    );
+    // Truncated screens are Incomplete, not an error.
+    let mut d = ServerDecoder::new(PixelFormat::RGBX, Limits::default()).unwrap();
+    d.next(&b).unwrap();
+    for i in 0..b.len() - 4 {
+        assert_eq!(d.next(&b[4..4 + i]), Err(Error::Incomplete));
+    }
+    // An empty or oversized framebuffer is refused.
+    for (w, h) in [(0, 768), (u16::MAX, u16::MAX)] {
+        let mut bad = b.clone();
+        bad[8..12].copy_from_slice(&[(w >> 8) as u8, w as u8, (h >> 8) as u8, h as u8]);
+        let mut d = ServerDecoder::new(PixelFormat::RGBX, Limits::default()).unwrap();
+        d.next(&bad).unwrap();
+        assert!(d.next(&bad[4..]).is_err());
+    }
+    let mut e = ServerEncoder::new(Limits::default());
+    let empty = Rectangle::ExtendedDesktopSize {
+        reason: 0,
+        status: 0,
+        width: 0,
+        height: 1,
+        screens: vec![],
+    };
+    assert!(e.update(&[empty], PixelFormat::RGBX, RAW).is_err());
+    assert_eq!(EXTENDED_DESKTOP_SIZE, -308);
+    assert!(ENCODINGS.contains(&EXTENDED_DESKTOP_SIZE));
+}

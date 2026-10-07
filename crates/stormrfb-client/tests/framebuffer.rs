@@ -65,6 +65,33 @@ fn resize_cursor_and_invalid_bounds() {
     assert_eq!(fb.rgba()[3], 255);
 }
 #[test]
+fn extended_desktop_size_reallocates_only_on_a_new_size() {
+    let mut fb = Framebuffer::new(2, 1, Limits::default()).unwrap();
+    fb.apply(Rectangle::Pixels {
+        rect: fb.rect(),
+        pixels: vec![[5, 6, 7, 255]; 2],
+    })
+    .unwrap();
+    let eds = |width, height| Rectangle::ExtendedDesktopSize {
+        reason: RESIZE_BY_SERVER,
+        status: RESIZE_OK,
+        width,
+        height,
+        screens: vec![Screen::whole(0, width, height)],
+    };
+    assert_eq!(
+        fb.apply(eds(2, 1)).unwrap(),
+        Event::Resized {
+            width: 2,
+            height: 1
+        }
+    );
+    assert_eq!(&fb.rgba()[..4], &[5, 6, 7, 255], "same size keeps the pixels");
+    fb.apply(eds(3, 2)).unwrap();
+    assert_eq!(fb.rgba().len(), 24);
+    assert_eq!(&fb.rgba()[..4], &[0, 0, 0, 255]);
+}
+#[test]
 fn input_translation() {
     assert_eq!(keysym("Enter"), Some(0xff0d));
     assert_eq!(keysym("F12"), Some(0xffc9));

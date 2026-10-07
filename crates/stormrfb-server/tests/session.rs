@@ -310,3 +310,173 @@ fn acknowledgement_answers_an_incremental_request_without_damage() {
     );
     assert!(s.update().unwrap().is_none());
 }
+/// A ready session whose client has had its first update, so it knows
+/// whether the server takes -308.
+fn ready() -> (Client, Server) {
+    let mut s = server(Security::None);
+    let mut c = Client::new(None, Limits::default());
+    exchange(&mut c, &mut s, VERSION.to_vec());
+    assert!(!c.desktop_resize());
+    assert_eq!(
+        c.request_resize(8, 6),
+        Err(Error::Unsupported(EXTENDED_DESKTOP_SIZE))
+    );
+    s.damage(
+        Rect {
+            width: 4,
+            height: 3,
+            ..Rect::default()
+        },
+        &[[9, 8, 7, 255]; 12],
+    )
+    .unwrap();
+    let b = s.update().unwrap().unwrap();
+    // The layout comes with the pixels and does not clear or resize them.
+    let events = c.receive(&b).unwrap();
+    assert!(!events.iter().any(|e| matches!(e, C::Resized { .. })));
+    assert_eq!(&c.framebuffer().unwrap().rgba()[..4], &[9, 8, 7, 255]);
+    assert!(c.desktop_resize());
+    assert_eq!(c.screens(), &[Screen::whole(0, 4, 3)]);
+    for e in events {
+        if let C::Send(b) = e {
+            s.receive(&b).unwrap();
+        }
+    }
+    (c, s)
+}
+#[test]
+fn extended_desktop_size_request_accepted() {
+    let (mut c, mut s) = ready();
+    assert_eq!(c.resize_status(), None);
+    let b = c.request_resize(8, 6).unwrap();
+    assert_eq!(
+        s.receive(&b).unwrap(),
+        vec![S::SetDesktopSize {
+            width: 8,
+            height: 6,
+            screens: vec![Screen::whole(0, 8, 6)],
+        }]
+    );
+    s.accept_resize().unwrap();
+    assert!(s.accept_resize().is_err(), "answered already");
+    let b = s.update().unwrap().unwrap();
+    let events = c.receive(&b).unwrap();
+    assert!(events.contains(&C::Resized {
+        width: 8,
+        height: 6
+    }));
+    assert_eq!(c.resize_status(), Some(RESIZE_OK));
+    assert_eq!(c.framebuffer().unwrap().width(), 8);
+    // The client then asks for the whole new framebuffer, and gets it.
+    for e in events {
+        if let C::Send(b) = e {
+            s.receive(&b).unwrap();
+        }
+    }
+    s.damage(
+        Rect {
+            x: 7,
+            y: 5,
+            width: 1,
+            height: 1,
+        },
+        &[[1, 2, 3, 255]],
+    )
+    .unwrap();
+    let b = s.update().unwrap().unwrap();
+    exchange(&mut c, &mut s, b);
+    assert_eq!(&c.framebuffer().unwrap().rgba()[(5 * 8 + 7) * 4..], &[1, 2, 3, 255]);
+}
+#[test]
+fn extended_desktop_size_request_refused() {
+    let (mut c, mut s) = ready();
+    assert!(s.refuse_resize(RESIZE_PROHIBITED).is_err(), "nothing asked");
+    s.receive(&c.request_resize(8, 6).unwrap()).unwrap();
+    assert!(s.refuse_resize(RESIZE_OK).is_err());
+    s.refuse_resize(RESIZE_PROHIBITED).unwrap();
+    let b = s.update().unwrap().expect("the refusal answers on its own");
+    let events = c.receive(&b).unwrap();
+    assert!(!events.iter().any(|e| matches!(e, C::Resized { .. })));
+    assert_eq!(c.resize_status(), Some(RESIZE_PROHIBITED));
+    assert_eq!(c.framebuffer().unwrap().width(), 4);
+    assert_eq!(&c.framebuffer().unwrap().rgba()[..4], &[9, 8, 7, 255]);
+}
+#[test]
+fn extended_desktop_size_bad_requests_are_refused_without_an_event() {
+    let small = Limits {
+        max_pixels: 100,
+        ..Limits::default()
+    };
+    for (width, height, screens, status) in [
+        // A screen outside the framebuffer.
+        (4, 3, vec![Screen::whole(0, 8, 6)], RESIZE_INVALID_LAYOUT),
+        (4, 3, vec![], RESIZE_INVALID_LAYOUT),
+        // Larger than the session's limits.
+        (20, 20, vec![Screen::whole(0, 20, 20)], RESIZE_OUT_OF_RESOURCES),
+    ] {
+        let mut s = Server::new(
+            ServerInit {
+                width: 4,
+                height: 3,
+                format: PixelFormat::RGBX,
+                name: b"test".to_vec(),
+            },
+            Security::None,
+            small,
+        )
+        .unwrap();
+        let mut c = Client::new(None, small);
+        exchange(&mut c, &mut s, VERSION.to_vec());
+        let b = s.update().unwrap().unwrap();
+        exchange(&mut c, &mut s, b);
+        let m = c
+            .send(ClientMessage::SetDesktopSize {
+                width,
+                height,
+                screens,
+            })
+            .unwrap();
+        assert_eq!(s.receive(&m).unwrap(), vec![]);
+        assert!(s.accept_resize().is_err());
+        let b = s.update().unwrap().unwrap();
+        exchange(&mut c, &mut s, b);
+        assert_eq!(c.resize_status(), Some(status));
+        assert_eq!(c.framebuffer().unwrap().width(), 4);
+    }
+}
+#[test]
+fn server_resize_is_sent_as_extended_desktop_size() {
+    let (mut c, mut s) = ready();
+    s.resize(6, 2).unwrap();
+    let b = s.update().unwrap().unwrap();
+    // One -308 rectangle, reason 0, alone in the update.
+    assert_eq!(b.len(), 4 + 12 + 4 + 16);
+    assert_eq!(&b[..4], &[0, 0, 0, 1]);
+    assert_eq!(&b[4..8], &[0, 0, 0, 0], "reason 0, status 0");
+    assert_eq!(&b[12..16], &EXTENDED_DESKTOP_SIZE.to_be_bytes());
+    let events = c.receive(&b).unwrap();
+    assert!(events.contains(&C::Resized {
+        width: 6,
+        height: 2
+    }));
+    assert_eq!(c.screens(), &[Screen::whole(0, 6, 2)]);
+    assert_eq!(c.resize_status(), None, "not an answer to the client");
+}
+#[test]
+fn set_desktop_size_without_negotiation_ends_the_session() {
+    let mut s = server(Security::None);
+    for b in [VERSION.to_vec(), vec![1], vec![1]] {
+        s.receive(&b).unwrap();
+    }
+    let m = ClientMessage::SetDesktopSize {
+        width: 8,
+        height: 6,
+        screens: vec![Screen::whole(0, 8, 6)],
+    }
+    .encode(Limits::default())
+    .unwrap();
+    assert_eq!(
+        s.receive(&m),
+        Err(Error::Unsupported(EXTENDED_DESKTOP_SIZE))
+    );
+}

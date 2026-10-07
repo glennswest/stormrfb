@@ -28,6 +28,23 @@ fn client_messages_roundtrip_and_fragment() {
             y: 51,
         },
         ClientMessage::CutText(b"clipboard\n".to_vec()),
+        ClientMessage::SetDesktopSize {
+            width: 1920,
+            height: 1080,
+            screens: vec![
+                Screen::whole(7, 960, 1080),
+                Screen {
+                    id: 8,
+                    rect: Rect {
+                        x: 960,
+                        y: 0,
+                        width: 960,
+                        height: 1080,
+                    },
+                    flags: 3,
+                },
+            ],
+        },
     ];
     for m in messages {
         let b = m.encode(Limits::default()).unwrap();
@@ -181,5 +198,43 @@ fn qemu_extended_key_event_wire_and_keycodes() {
     assert_eq!(
         ClientMessage::decode(&[255, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1], Limits::default()),
         Err(Error::Invalid("boolean"))
+    );
+}
+#[test]
+fn set_desktop_size_wire_layout() {
+    // Message 251, padding, width, height, number-of-screens, padding, then
+    // id, x, y, width, height, flags per screen (as noVNC and TigerVNC send).
+    let b = ClientMessage::SetDesktopSize {
+        width: 640,
+        height: 480,
+        screens: vec![Screen::whole(1, 640, 480)],
+    }
+    .encode(Limits::default())
+    .unwrap();
+    assert_eq!(
+        b,
+        [
+            251, 0, 2, 128, 1, 224, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 128, 1, 224, 0, 0, 0, 0
+        ]
+    );
+    let too_many = ClientMessage::SetDesktopSize {
+        width: 640,
+        height: 480,
+        screens: vec![Screen::whole(1, 640, 480); 256],
+    };
+    assert_eq!(too_many.encode(Limits::default()), Err(Error::Limit));
+}
+#[test]
+fn valid_layouts() {
+    let one = [Screen::whole(0, 640, 480)];
+    assert!(valid_layout(640, 480, &one));
+    assert!(valid_layout(800, 600, &one));
+    assert!(!valid_layout(320, 480, &one), "screen outside the framebuffer");
+    assert!(!valid_layout(640, 480, &[]), "no screens");
+    assert!(!valid_layout(0, 480, &one));
+    assert!(!valid_layout(640, 480, &[Screen::whole(0, 0, 480)]));
+    assert!(
+        !valid_layout(640, 480, &[one[0], one[0]]),
+        "duplicate screen ids"
     );
 }
