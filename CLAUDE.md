@@ -74,7 +74,7 @@ at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
 (#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
 overflow, #12 test-crate lint.
 
-### Active — #5 real Hextile/ZRLE tile subencodings (2026-10-07)
+### Done — #5 real Hextile/ZRLE tile subencodings (2026-10-07)
 
 Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
 - [x] `tiles.rs` encoder side: Hextile per tile (bg-only, carried bg,
@@ -84,12 +84,14 @@ Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
       (0ac0c54)
 - [x] unit tests in tiles.rs: each subencoding chosen; 8 scenes × 5 sizes
       × 4 pixel formats round-trip through the decoders (0ac0c54)
-- [ ] sc-build: workspace tests, clippy, fmt; test/ medium for bytes/frame.
-      dev is gone (stormcentral#107): `SC_BUILD_VM=1 sc-build` runs on a
-      fresh build VM; follow a job with `stormcentral buildvm log <id>`.
-      First job c7157f9ad2 (0ac0c54, fmt + diff + clippy + test) queued
+- [x] build VM (dev is gone, stormcentral#107: `SC_BUILD_VM=1 sc-build`,
+      `stormcentral buildvm log <id>`): at 8c3b91e test/ short 5/5, medium
+      14 + 1 skip, moving-window-1080p 61,788 B/frame (was 131,640), all
+      exact; at e2cfdc8 workspace fmt --check, clippy -D warnings, 31 tests.
+      The inflate-cap test needed a noise tile (cd26dc3). Test crate fmt
+      still differs (#12; the build refiled it as #21)
 - [x] docs (README, server crate doc, VALIDATION, DESIGN, deck), CHANGELOG
-      (98ae1fc); VALIDATION's bytes/frame number waits on the medium run
+      (98ae1fc, e2cfdc8)
 
 ### Done — #13 stormcentral#56 references (2026-10-07)
 
