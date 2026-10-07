@@ -107,6 +107,8 @@ Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
       (8 hunks); applied by hand, as there is no toolchain on this VM
 - [x] README "Build and test": the test crate's clippy and fmt commands
 - [ ] sc-build: workspace + test crate clippy -D warnings and fmt --check
+- BLOCKED 2026-10-07 16:30Z: 5 sc-builds of a860a8b cancelled while
+  waiting for a build-VM slot (every project; stormcentral#536)
 
 ### Active — #11 slide overflow (2026-10-06)
 
