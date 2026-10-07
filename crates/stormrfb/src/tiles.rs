@@ -282,7 +282,10 @@ fn census(keys: &[u32], sorted: &mut Vec<u32>) -> (usize, usize) {
         i = j;
     }
     let colour = sorted[best];
-    (keys.iter().position(|&k| k == colour).unwrap_or(0), distinct)
+    (
+        keys.iter().position(|&k| k == colour).unwrap_or(0),
+        distinct,
+    )
 }
 
 /// Hextile, choosing per 16×16 tile: background only (nothing at all when
@@ -340,11 +343,7 @@ pub(crate) fn encode_hextile(wire: &[u8], bpp: usize, w: usize, h: usize, out: &
                     for row in sy..sy + sh {
                         covered[row * tw + sx..row * tw + sx + sw].fill(true);
                     }
-                    subrects.push((
-                        i,
-                        (sx << 4 | sy) as u8,
-                        ((sw - 1) << 4 | (sh - 1)) as u8,
-                    ));
+                    subrects.push((i, (sx << 4 | sy) as u8, ((sw - 1) << 4 | (sh - 1)) as u8));
                 }
             }
             let mono = distinct == 2;
@@ -354,7 +353,7 @@ pub(crate) fn encode_hextile(wire: &[u8], bpp: usize, w: usize, h: usize, out: &
                 + if new_bg { bpp } else { 0 }
                 + if new_fg { bpp } else { 0 }
                 + subrects.len() * (2 + if mono { 0 } else { bpp });
-            if subrects.len() > 255 || size >= 1 + tw * th * bpp {
+            if subrects.len() > 255 || size > tw * th * bpp {
                 out.push(1);
                 out.extend_from_slice(&bytes);
                 bg = None;
@@ -668,7 +667,10 @@ mod tests {
         for &p in pixels {
             f.write(p, &mut b).unwrap();
         }
-        let expect = b.chunks_exact(f.bytes()).map(|c| f.read(c).unwrap()).collect();
+        let expect = b
+            .chunks_exact(f.bytes())
+            .map(|c| f.read(c).unwrap())
+            .collect();
         (b, expect)
     }
     #[test]
@@ -680,12 +682,20 @@ mod tests {
                     let mut hx = vec![];
                     encode_hextile(&b, f.bytes(), w, h, &mut hx);
                     let mut r = Reader::new(&hx);
-                    assert_eq!(hextile(&mut r, f, w, h).unwrap(), expect, "hextile {f:?} {w}x{h} #{k}");
+                    assert_eq!(
+                        hextile(&mut r, f, w, h).unwrap(),
+                        expect,
+                        "hextile {f:?} {w}x{h} #{k}"
+                    );
                     assert_eq!(r.pos, hx.len());
                     assert!(hx.len() <= b.len() + w.div_ceil(16) * h.div_ceil(16));
                     let mut z = vec![];
                     encode_zrle(&b, f.bytes(), omitted(f), w, h, &mut z);
-                    assert_eq!(zrle(&z, f, w, h).unwrap(), expect, "zrle {f:?} {w}x{h} #{k}");
+                    assert_eq!(
+                        zrle(&z, f, w, h).unwrap(),
+                        expect,
+                        "zrle {f:?} {w}x{h} #{k}"
+                    );
                     let c = f.bytes() - usize::from(omitted(f).is_some());
                     assert!(z.len() <= w * h * c + w.div_ceil(64) * h.div_ceil(64));
                 }
@@ -704,13 +714,17 @@ mod tests {
         let a = [1, 2, 3, 255];
         let b = [9, 8, 7, 255];
         assert_eq!(mode(&[a; 64 * 64], 64, 64), 1);
-        let checker: Vec<_> = (0..64 * 64).map(|i| if (i + i / 64) % 2 == 0 { a } else { b }).collect();
+        let checker: Vec<_> = (0..64 * 64)
+            .map(|i| if (i + i / 64) % 2 == 0 { a } else { b })
+            .collect();
         assert_eq!(mode(&checker, 64, 64), 2);
         // Two long runs: plain RLE beats a palette.
         let halves: Vec<_> = (0..64 * 64).map(|i| if i < 2048 { a } else { b }).collect();
         assert_eq!(mode(&halves, 64, 64), 128);
         // 40 colours in runs of 3: palette RLE.
-        let pal: Vec<_> = (0..64 * 64).map(|i| [(i / 3 % 40) as u8, 0, 0, 255]).collect();
+        let pal: Vec<_> = (0..64 * 64)
+            .map(|i| [(i / 3 % 40) as u8, 0, 0, 255])
+            .collect();
         assert_eq!(mode(&pal, 64, 64), 128 | 40);
         let runs: Vec<_> = (0..64 * 64).map(|i| [(i / 32) as u8, 0, 0, 255]).collect();
         assert_eq!(mode(&runs, 64, 64), 128);
@@ -734,7 +748,10 @@ mod tests {
         let mut t = vec![a; 256];
         t[17] = b;
         t[18] = b;
-        assert_eq!(hx(&t, 16, 16), vec![14, 1, 2, 3, 0, 9, 8, 7, 0, 1, 0x11, 0x10]);
+        assert_eq!(
+            hx(&t, 16, 16),
+            vec![14, 1, 2, 3, 0, 9, 8, 7, 0, 1, 0x11, 0x10]
+        );
         assert_eq!(hx(&noise[..256], 16, 16)[0], 1);
     }
 }
