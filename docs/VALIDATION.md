@@ -16,14 +16,16 @@ see §Reproduce.)
 - `stormrfb`: sans-I/O bounded wire codec; client handshake and both None/VNC
   authentication primitives; 16/32-bit true-colour conversion in both byte
   orders; all scoped client messages and server controls; Raw, CopyRect,
-  Hextile, persistent ZRLE, Cursor, DesktopSize and LastRect.
+  Hextile, persistent ZRLE, Cursor, DesktopSize, LastRect,
+  ExtendedDesktopSize/SetDesktopSize (#6) and QEMU Extended Key Event.
 - `stormrfb-client`: fragmented stream handling, canonical opaque RGBA
   framebuffer, overlap-safe CopyRect, cursor masks, damage events, resize,
   update requests and DOM key/button translation. Renderer trait is available
   to native consumers; the browser uses the same framebuffer through its ABI.
 - `stormrfb-server`: per-connection handshake/authentication, input events,
   framebuffer damage, full/incremental requested updates, negotiated pixel
-  format/encoding and DesktopSize. Raw, Hextile and ZRLE are supported; each
+  format/encoding, DesktopSize, and ExtendedDesktopSize resize requests
+  answered by the application. Raw, Hextile and ZRLE are supported; each
   Hextile and ZRLE tile's subencoding is chosen by size (#5).
 - `stormrfb-wasm` and `web/`: private browser package, canvas ImageData views
   into WASM memory, dirty-region paint, view recreation on memory growth,
@@ -294,7 +296,7 @@ is `stormrfb-client` over a `UnixStream`.
 - stormvm owns the virtio-gpu/vhost-user integration. The real 1080p moving
   guest server fps/bytes-per-second measurement is pending that integration.
   The in-process number above is the library's part of it.
-- RFB 3.3/3.7, indexed-colour pixel formats, ExtendedDesktopSize client resize,
+- RFB 3.3/3.7, indexed-colour pixel formats,
   ContinuousUpdates/Fence, Tight/JPEG, IME/composition and a shipped native
   viewer are not implemented. The native harness intentionally has mouse
   input only. The browser supports ordinary DOM keys and Latin-1 clipboard,

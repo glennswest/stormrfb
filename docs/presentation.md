@@ -87,10 +87,10 @@ From `crates/stormrfb/src`:
 | Security | None (1), VNC Authentication (2, DES challenge/response) |
 | Pixel formats | true colour, 16/32 bpp, both byte orders. Colour maps are rejected |
 | Decoded encodings | Raw, CopyRect, Hextile, ZRLE (one persistent zlib stream) |
-| Pseudo-encodings | Cursor (-239), DesktopSize (-223), LastRect (-224) |
+| Pseudo-encodings | Cursor (-239), DesktopSize (-223), LastRect (-224), ExtendedDesktopSize (-308), QEMU keys (-258) |
 | Encoder | Raw, Hextile and ZRLE (tile subencodings chosen by size), and CopyRect, Cursor, DesktopSize rectangles |
 
-The client advertises `ZRLE, Hextile, CopyRect, Raw, Cursor, DesktopSize, LastRect`.
+The client advertises `ZRLE, Hextile, CopyRect, Raw, Cursor, DesktopSize, LastRect, ExtendedDesktopSize, QemuExtendedKey`.
 
 ---
 
@@ -129,7 +129,8 @@ session per connection.
   outstanding request.
 - **Encoding:** the first of Raw/Hextile/ZRLE in the client's order. Pixels
   go out in whatever format the client set.
-- **Resize:** `resize(w, h)` works once the client advertised DesktopSize.
+- **Resize:** `resize(w, h)` works once the client advertised DesktopSize
+  or -308; a client's request is `accept_resize` / `refuse_resize`.
 
 A session never sends CopyRect, Cursor, Bell or cut text by itself. The
 encoder can build them if the application writes the bytes.
@@ -203,7 +204,6 @@ All crates are `publish = false`, edition 2024, rust-version 1.85.
 |---|---|
 | #16 | The browser sends scancodes (`KeyboardEvent.code` → QemuKey). Needs the WASM tools on the build box |
 | stormconsole#99 | stormconsole makes stormrfb the default and removes noVNC (#4's gate passed) |
-| #6 | ExtendedDesktopSize (-308): the client asks for a resize |
 | #7 | Phase 4 latency: ContinuousUpdates (-313) and Fence (-312) |
 | stormvm#1 | The Rust-VMM display that `stormrfb-server` exists for. That work is stormvm's |
 

@@ -101,20 +101,21 @@ Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
 
 ### Active — #6 ExtendedDesktopSize (-308) + SetDesktopSize (2026-10-07)
 
-- [ ] codec: `EXTENDED_DESKTOP_SIZE` in `ENCODINGS` (before -258, which
-      stays last); `Screen`; `Rectangle::ExtendedDesktopSize { reason,
-      status, width, height, screens }`; `ClientMessage::SetDesktopSize`
-      (251); encode + decode; reason/status constants
-- [ ] client: `desktop_resize()` (any -308 seen), `request_resize(w, h)`,
-      `resize_status()`, `screens()`; same-size layouts do not resize.
-      Client `Event` unchanged (stormrdp matches it exhaustively)
-- [ ] server: acks -308 once; `resize` sends -308 when negotiated;
-      `Event::SetDesktopSize`, `accept_resize`/`refuse_resize`; requests
-      that do not fit Limits or have a bad layout are refused (2/3) without
-      an event; one reply per update, latest answer wins (bounded)
-- [ ] wasm `resize`/`can_resize`; web `connect()` returns `resize(w, h)`
-- [ ] tests; docs (README, DESIGN, VALIDATION, deck); CHANGELOG; v0.3.0
-- [ ] sc-build (blocked while stormcentral#536 cancels queued jobs)
+- [x] codec: `EXTENDED_DESKTOP_SIZE` in `ENCODINGS` (before -258, which
+      stays last); `Screen`, `valid_layout`; `Rectangle::ExtendedDesktopSize`;
+      `ClientMessage::SetDesktopSize` (251); `RESIZE_*` constants (8126f56)
+- [x] client: `desktop_resize()`, `request_resize(w, h)`, `resize_status()`,
+      `screens()`; same-size layouts do not resize; `Event` unchanged
+- [x] server: layout once after -308; `resize` as -308; `Event::SetDesktopSize`,
+      `accept_resize`/`refuse_resize`; Limits → 2, bad layout → 3, no event;
+      one answer per update, the latest
+- [x] wasm `can_resize`/`resize`/`resize_status`; web `connect().resize`
+- [x] tests (db52e70); docs; CHANGELOG
+- [ ] sc-build: fmt/clippy/workspace tests/test medium — db52e70's build
+      was cancelled waiting for a slot (stormcentral#536)
+- [ ] then v0.3.0 (breaking enum variants), close #6
+- Not checkable here: the JS test (no wasm target, stormcentral#64); a real
+  qemu answering SetDesktopSize (needs virtio-gpu/-vga std with ui-info)
 
 ### Active — #12 test-crate lint (2026-10-07)
 

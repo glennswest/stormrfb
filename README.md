@@ -48,16 +48,16 @@ Every crate has `publish = false`. Rust edition 2024, `rust-version = 1.85`.
 | Version | **RFB 3.8 only** (`RFB 003.008\n`). Anything else fails with `Invalid("requires RFB 3.8")` |
 | Security | `None` (1) and VNC Authentication (2, DES challenge/response). No TLS/VeNCrypt/SASL. The transport is secured a layer up |
 | Pixel formats | True colour only, 16 or 32 bpp, both byte orders, validated channel masks. Colour-map formats are rejected |
-| Client → server | `SetPixelFormat`, `SetEncodings`, `FramebufferUpdateRequest`, `KeyEvent`, `PointerEvent`, `ClientCutText`, and QEMU's Extended Key Event (message 255, submessage 0) (encode and decode) |
+| Client → server | `SetPixelFormat`, `SetEncodings`, `FramebufferUpdateRequest`, `KeyEvent`, `PointerEvent`, `ClientCutText`, `SetDesktopSize` (251), and QEMU's Extended Key Event (message 255, submessage 0) (encode and decode) |
 | Server → client | `FramebufferUpdate`, `SetColourMapEntries` (decoded; the client ignores it), `Bell`, `ServerCutText` |
 | Decoded encodings | Raw (0), CopyRect (1), Hextile (5), ZRLE (16, one persistent zlib stream per connection) |
-| Pseudo-encodings | Cursor (-239), DesktopSize (-223), LastRect (-224), QEMU Extended Key Event (-258) |
-| Encoder (`ServerEncoder::update`) | Raw, Hextile and ZRLE, choosing each tile's subencoding by size (#5). Hextile: background only (nothing when the previous tile's background carries), one foreground in subrectangles, coloured subrectangles, or raw. ZRLE: the smallest of solid, packed palette, plain RLE, palette RLE and raw per 64×64 tile, deflated with `Compression::fast()`. Colours are compared as wire pixels. Also encodes CopyRect, Cursor, DesktopSize and the -258 acknowledgement |
-| Not implemented | RFB 3.3/3.7, TRLE (15) as an advertised encoding, Tight/JPEG/H.264, ExtendedDesktopSize (-308), ContinuousUpdates (-313)/Fence (-312), XCursor (-240), colour-map pixel formats |
+| Pseudo-encodings | Cursor (-239), DesktopSize (-223), LastRect (-224), ExtendedDesktopSize (-308, with its screen layout), QEMU Extended Key Event (-258) |
+| Encoder (`ServerEncoder::update`) | Raw, Hextile and ZRLE, choosing each tile's subencoding by size (#5). Hextile: background only (nothing when the previous tile's background carries), one foreground in subrectangles, coloured subrectangles, or raw. ZRLE: the smallest of solid, packed palette, plain RLE, palette RLE and raw per 64×64 tile, deflated with `Compression::fast()`. Colours are compared as wire pixels. Also encodes CopyRect, Cursor, DesktopSize, ExtendedDesktopSize and the -258 acknowledgement |
+| Not implemented | RFB 3.3/3.7, TRLE (15) as an advertised encoding, Tight/JPEG/H.264, ContinuousUpdates (-313)/Fence (-312), XCursor (-240), colour-map pixel formats |
 
 `ENCODINGS`, the list the client advertises, in preference order, is
 `ZRLE, Hextile, CopyRect, Raw, Cursor, DesktopSize, LastRect,
-QemuExtendedKey`.
+ExtendedDesktopSize, QemuExtendedKey`.
 
 ### Limits: the crates' only configuration
 
@@ -99,6 +99,16 @@ that decoder, client or session: reconnect with a fresh one.
   uses the keycode and ignores the keysym, so the guest's own layout
   decides the character: non-US layouts, AltGr, dead keys and keys with no
   keysym work. Checked against a real qemu by `tools/verify-extkey.sh`.
+- **Asking for a size** (ExtendedDesktopSize, -308). A server that supports
+  it sends its layout with the first update, and then `desktop_resize()` is
+  true and `screens()` holds the layout. `request_resize(w, h)` returns the
+  `SetDesktopSize` bytes for one screen of that size, keeping the first
+  screen's id and flags; before `desktop_resize()` it is `Unsupported(-308)`.
+  A granted size arrives as `Event::Resized`, as any resize does.
+  `resize_status()` is the status of the server's latest answer:
+  `RESIZE_OK` (0), `RESIZE_PROHIBITED` (1), `RESIZE_OUT_OF_RESOURCES` (2)
+  or `RESIZE_INVALID_LAYOUT` (3). A layout rectangle with an unchanged size
+  does not resize or clear the framebuffer. The `Event` enum is unchanged.
 - `Framebuffer` is opaque RGBA (alpha forced to 255; the wire's spare byte is
   not alpha). CopyRect handles overlap in every direction.
 - `Renderer` is a trait for native consumers. Nothing in this repo
@@ -126,8 +136,21 @@ that decoder, client or session: reconnect with a fresh one.
   intersects them. The encoding is the first of Raw/Hextile/ZRLE in the
   client's `SetEncodings` order, and Raw until one arrives. Pixels are sent
   in whatever format the client set.
-- `resize(w, h)` works only after the client advertised DesktopSize. It is
-  delivered as the next update, followed by a full refresh.
+- `resize(w, h)` works only after the client advertised DesktopSize or
+  ExtendedDesktopSize. It is delivered as the next update (as -308 when the
+  client advertised it, with a one-screen layout), followed by a full
+  refresh.
+- **Resize requests** (ExtendedDesktopSize). A client that advertises -308
+  is sent the layout in its next update. Its `SetDesktopSize` arrives as
+  `Event::SetDesktopSize { width, height, screens }` and the application
+  answers: `accept_resize()` makes the framebuffer that size and layout
+  (black, until `damage`) and answers status 0; `refuse_resize(status)`
+  answers with an error status and the current size. A request whose layout
+  fails `stormrfb::valid_layout` (one to 255 non-empty screens inside the
+  framebuffer, distinct ids) is answered 3, and one outside `Limits` 2, with
+  no event. A newer request replaces an unanswered one, and an update
+  carries one answer, the latest. `SetDesktopSize` from a client that did
+  not advertise -308 ends the session (`Unsupported(-308)`).
 - The server never sends CopyRect, Cursor, Bell, cut text or colour maps
   from a session. `ServerEvent::encode_control` and `ServerEncoder` can build
   them if the application writes the bytes itself.
@@ -135,19 +158,22 @@ that decoder, client or session: reconnect with a fresh one.
 ### Browser (`stormrfb-wasm` + `web/`)
 
 `BrowserClient` (`new(password?)`, `receive`, `width`, `height`,
-`framebuffer_ptr`, `key`, `key_sym`, `pointer`, `clipboard`) returns events
+`framebuffer_ptr`, `key`, `key_sym`, `pointer`, `clipboard`, `can_resize`,
+`resize(w, h)`, `resize_status`) returns events
 as `['send', bytes]`, `['ready', name]`, `['damage', x, y, w, h]`,
 `['resize', w, h]`, `['cursor', x, y, w, h, rgba]`, `['clipboard', text]`
 and `['bell']`.
 
 `web/client.js` exports `connect(canvas, url, { password, onready,
-onclipboard, onbell, onerror })`, which returns `{ close, clipboard(text) }`.
+onclipboard, onbell, onerror })`, which returns `{ close, clipboard(text),
+resize(w, h) }`; `resize` asks the server for that size and returns `false`
+when the server takes no requests.
 It draws with canvas 2D `putImageData` on damaged rectangles from an
 `ImageData` over WASM memory, and rebuilds the view after memory growth.
 It renders the cursor locally as a CSS cursor. Input is keyboard (release
 on blur), pointer with capture, and wheel. Clipboard text is Latin-1 only.
-It has no dead keys, no IME, no ExtendedDesktopSize and no scaling of its
-own. The canvas is the guest's size and CSS scales it. See
+It has no dead keys, no IME and no scaling of its own, and does not resize
+by itself: the page decides when to call `resize`. The canvas is the guest's size and CSS scales it. See
 [web/README.md](web/README.md).
 
 ### Native harness (development only)

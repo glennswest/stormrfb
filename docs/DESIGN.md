@@ -87,14 +87,19 @@ link that is not a loopback.
 
 ### Worth having, roughly in order
 
-As built: `Cursor` (-239), `DesktopSize` (-223), `LastRect` (-224) and
-QEMU Extended Key Event (-258, #1). `ExtendedDesktopSize`,
-`ContinuousUpdates` and `Fence` are **(design — not built)**.
+As built: `Cursor` (-239), `DesktopSize` (-223), `LastRect` (-224),
+`ExtendedDesktopSize` (-308, with `SetDesktopSize`, #6) and QEMU Extended
+Key Event (-258, #1). `ContinuousUpdates` and `Fence` are **(design — not
+built)**.
 
 - **`DesktopSize` (-223) and `ExtendedDesktopSize` (-308)** — a console
   whose framebuffer does not follow the window is unpleasant to use, and
   `ExtendedDesktopSize` is how a client *asks* for a resize rather than
-  only being told about one.
+  only being told about one. Built: the client asks with
+  `request_resize`, the server application decides (`accept_resize` /
+  `refuse_resize`), and requests outside `Limits` or with a bad layout are
+  refused by the server crate itself. The page decides when to ask (the
+  browser package resizes nothing by itself).
 - **`Cursor` (-239, a.k.a. RichCursor)** — a client-side cursor. Without
   it, every mouse move is a framebuffer round trip and the pointer lags
   behind the hand.
