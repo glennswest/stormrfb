@@ -136,6 +136,11 @@ Nothing built yet.
 - [ ] sc-build: workspace + test crate clippy -D warnings and fmt --check
 - BLOCKED 2026-10-07 16:30Z: 5 sc-builds of a860a8b cancelled while
   waiting for a build-VM slot (every project; stormcentral#536)
+- Still blocked 2026-10-07 ~17:30Z: the build of fe48928 (fmt --check and
+  clippy -D warnings for workspace + test crate, workspace tests) was
+  cancelled waiting for a slot. #536 was closed as the master's deliberate
+  drain for the bootstrap golden; it is still draining (stormcentral#541).
+  Proposed --after stormcentral#541; rerun that one command when it ends
 
 ### Active — #11 slide overflow (2026-10-06)
 
