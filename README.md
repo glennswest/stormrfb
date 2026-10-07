@@ -173,12 +173,16 @@ git push
 sc-build                                   # cargo build && cargo test
 sc-build 'cargo test --workspace --locked'
 sc-build 'cargo clippy --workspace --all-targets --locked -- -D warnings'
+sc-build 'cargo fmt --all --check'
+# test/ is its own workspace; the two lines above do not cover it
+sc-build 'cargo clippy --release --locked --manifest-path test/Cargo.toml -- -D warnings'
+sc-build 'cargo fmt --manifest-path test/Cargo.toml --check'
 ```
 
-The Rust suite is 25 tests: codec round trips, fragmentation, hostile
-lengths, tile subencodings, server sessions, and replays of the two recorded
-fixtures (`fixtures/qemu-zrle.rfb`, `fixtures/tigervnc-zrle.rfb`) against
-independently captured pixel hashes.
+The Rust suite is 29 tests: codec round trips, fragmentation, hostile
+lengths, tile subencodings, server sessions, QEMU extended keys, and
+replays of the two recorded fixtures (`fixtures/qemu-zrle.rfb`,
+`fixtures/tigervnc-zrle.rfb`) against independently captured pixel hashes.
 
 **The stormcos test container** is in [`test/`](test/README.md), with
 `short`, `medium` and `long` suites in one image, `/test <suite>`, per
