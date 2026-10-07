@@ -122,6 +122,10 @@ Nothing built yet.
 - [ ] sc-build: fmt/clippy/workspace tests/test medium — builds of db52e70
       and 06a29dc cancelled waiting for a slot (stormcentral#536)
 - BLOCKED 2026-10-07: proposed --after stormcentral#536
+- 2026-10-07 17:40Z: reviewed 8126f56 by hand against the test crate
+  (no compile issue found); one sc-build of HEAD (workspace tests, clippy,
+  fmt; test crate clippy/fmt; test/ short + medium) retrying until the
+  build-VM drain ends (stormcentral#541, due ~18:11Z)
 - [ ] then v0.3.0 (breaking enum variants), close #6
 - Not checkable here: the JS test (no wasm target, stormcentral#64); a real
   qemu answering SetDesktopSize (needs virtio-gpu/-vga std with ui-info)
