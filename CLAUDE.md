@@ -111,8 +111,9 @@ Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
       one answer per update, the latest
 - [x] wasm `can_resize`/`resize`/`resize_status`; web `connect().resize`
 - [x] tests (db52e70); docs; CHANGELOG
-- [ ] sc-build: fmt/clippy/workspace tests/test medium — db52e70's build
-      was cancelled waiting for a slot (stormcentral#536)
+- [ ] sc-build: fmt/clippy/workspace tests/test medium — builds of db52e70
+      and 06a29dc cancelled waiting for a slot (stormcentral#536)
+- BLOCKED 2026-10-07: proposed --after stormcentral#536
 - [ ] then v0.3.0 (breaking enum variants), close #6
 - Not checkable here: the JS test (no wasm target, stormcentral#64); a real
   qemu answering SetDesktopSize (needs virtio-gpu/-vga std with ui-info)
