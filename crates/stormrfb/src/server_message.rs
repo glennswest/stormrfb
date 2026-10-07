@@ -327,27 +327,24 @@ impl ServerEncoder {
                             }
                         }
                         HEXTILE | ZRLE => {
-                            let size = if encoding == HEXTILE { 16 } else { 64 };
-                            let mut tiles = Vec::new();
+                            let mut wire = Vec::with_capacity(pixels.len() * format.bytes());
+                            for p in pixels {
+                                format.write(*p, &mut wire)?;
+                            }
                             let w = usize::from(rect.width);
                             let h = usize::from(rect.height);
-                            for y in (0..h).step_by(size) {
-                                for x in (0..w).step_by(size) {
-                                    tiles.push(if encoding == HEXTILE { 1 } else { 0 });
-                                    for row in y..(y + size).min(h) {
-                                        for col in x..(x + size).min(w) {
-                                            let start = tiles.len();
-                                            format.write(pixels[row * w + col], &mut tiles)?;
-                                            if encoding == ZRLE {
-                                                if let Some(skip) = tiles::omitted(format) {
-                                                    tiles.remove(start + skip);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            if encoding == ZRLE {
+                            if encoding == HEXTILE {
+                                tiles::encode_hextile(&wire, format.bytes(), w, h, &mut out);
+                            } else {
+                                let mut tiles = Vec::new();
+                                tiles::encode_zrle(
+                                    &wire,
+                                    format.bytes(),
+                                    tiles::omitted(format),
+                                    w,
+                                    h,
+                                    &mut tiles,
+                                );
                                 let compressed = self.deflate(&tiles)?;
                                 out.extend(
                                     u32::try_from(compressed.len())
@@ -355,8 +352,6 @@ impl ServerEncoder {
                                         .to_be_bytes(),
                                 );
                                 out.extend(compressed);
-                            } else {
-                                out.extend(tiles);
                             }
                         }
                         _ => unreachable!(),

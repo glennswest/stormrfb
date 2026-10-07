@@ -2,7 +2,8 @@
 //!
 //! Updates are pixel rectangles only (never CopyRect or Cursor), encoded with
 //! the first of Raw/Hextile/ZRLE in the client's `SetEncodings` order; the
-//! encoder emits raw tiles for Hextile and ZRLE. A client that advertises
+//! encoder picks each Hextile and ZRLE tile's subencoding (solid, palette,
+//! RLE, subrectangles) by size, raw only when nothing is smaller. A client that advertises
 //! QEMU Extended Key Event (-258) is acknowledged in the next update, and
 //! its extended key events arrive as [`Event::QemuKey`].
 #![forbid(unsafe_code)]

@@ -237,6 +237,301 @@ pub(crate) fn zrle(data: &[u8], f: PixelFormat, w: usize, h: usize) -> Result<Ve
     Ok(out)
 }
 
+// Encoders. They work on wire pixels (`bpp` bytes each, row-major), so two
+// colours that one pixel format maps to the same bytes are one colour.
+
+fn key(px: &[u8]) -> u32 {
+    let mut b = [0; 4];
+    b[..px.len()].copy_from_slice(px);
+    u32::from_le_bytes(b)
+}
+/// Copy one tile's wire pixels and their keys out of the rectangle.
+fn gather(
+    wire: &[u8],
+    bpp: usize,
+    w: usize,
+    (x, y, tw, th): (usize, usize, usize, usize),
+    bytes: &mut Vec<u8>,
+    keys: &mut Vec<u32>,
+) {
+    bytes.clear();
+    keys.clear();
+    for row in y..y + th {
+        let line = &wire[(row * w + x) * bpp..(row * w + x + tw) * bpp];
+        bytes.extend_from_slice(line);
+        keys.extend(line.chunks_exact(bpp).map(key));
+    }
+}
+/// Most common key and the number of distinct keys in a tile.
+fn census(keys: &[u32], sorted: &mut Vec<u32>) -> (usize, usize) {
+    sorted.clear();
+    sorted.extend_from_slice(keys);
+    sorted.sort_unstable();
+    let (mut best, mut best_n, mut distinct) = (0, 0, 0);
+    let mut i = 0;
+    while i < sorted.len() {
+        let mut j = i + 1;
+        while j < sorted.len() && sorted[j] == sorted[i] {
+            j += 1;
+        }
+        distinct += 1;
+        if j - i > best_n {
+            best_n = j - i;
+            best = i;
+        }
+        i = j;
+    }
+    let colour = sorted[best];
+    (keys.iter().position(|&k| k == colour).unwrap_or(0), distinct)
+}
+
+/// Hextile, choosing per 16×16 tile: background only (nothing at all when
+/// it is the previous tile's background), one foreground in subrectangles,
+/// coloured subrectangles, or raw when that is no larger. The background
+/// and foreground are respecified after a raw tile, and the foreground
+/// after a coloured one, rather than relying on what a decoder carries.
+pub(crate) fn encode_hextile(wire: &[u8], bpp: usize, w: usize, h: usize, out: &mut Vec<u8>) {
+    let (mut bytes, mut keys, mut sorted) = (vec![], vec![], vec![]);
+    let mut subrects: Vec<(usize, u8, u8)> = vec![];
+    let mut covered = [false; 256];
+    let mut bg: Option<u32> = None;
+    let mut fg: Option<u32> = None;
+    for y in (0..h).step_by(16) {
+        for x in (0..w).step_by(16) {
+            let tw = 16.min(w - x);
+            let th = 16.min(h - y);
+            gather(wire, bpp, w, (x, y, tw, th), &mut bytes, &mut keys);
+            let px = |i: usize| &bytes[i * bpp..(i + 1) * bpp];
+            let (bg_at, distinct) = census(&keys, &mut sorted);
+            let bg_key = keys[bg_at];
+            let new_bg = bg != Some(bg_key);
+            if distinct == 1 {
+                out.push(if new_bg { 2 } else { 0 });
+                if new_bg {
+                    out.extend_from_slice(px(bg_at));
+                }
+                bg = Some(bg_key);
+                continue;
+            }
+            // Greedy cover of every non-background pixel: run right, then
+            // grow down while the whole run matches. Overlap is harmless,
+            // a pixel is only ever painted its own colour.
+            subrects.clear();
+            covered[..tw * th].fill(false);
+            for sy in 0..th {
+                for sx in 0..tw {
+                    let i = sy * tw + sx;
+                    if covered[i] || keys[i] == bg_key {
+                        continue;
+                    }
+                    let c = keys[i];
+                    let mut sw = 1;
+                    while sx + sw < tw && keys[i + sw] == c {
+                        sw += 1;
+                    }
+                    let mut sh = 1;
+                    while sy + sh < th
+                        && keys[(sy + sh) * tw + sx..(sy + sh) * tw + sx + sw]
+                            .iter()
+                            .all(|&k| k == c)
+                    {
+                        sh += 1;
+                    }
+                    for row in sy..sy + sh {
+                        covered[row * tw + sx..row * tw + sx + sw].fill(true);
+                    }
+                    subrects.push((
+                        i,
+                        (sx << 4 | sy) as u8,
+                        ((sw - 1) << 4 | (sh - 1)) as u8,
+                    ));
+                }
+            }
+            let mono = distinct == 2;
+            let fg_key = keys[subrects[0].0];
+            let new_fg = mono && fg != Some(fg_key);
+            let size = 2
+                + if new_bg { bpp } else { 0 }
+                + if new_fg { bpp } else { 0 }
+                + subrects.len() * (2 + if mono { 0 } else { bpp });
+            if subrects.len() > 255 || size >= 1 + tw * th * bpp {
+                out.push(1);
+                out.extend_from_slice(&bytes);
+                bg = None;
+                fg = None;
+                continue;
+            }
+            let mut flags = 8;
+            if new_bg {
+                flags |= 2;
+            }
+            if new_fg {
+                flags |= 4;
+            }
+            if !mono {
+                flags |= 16;
+            }
+            out.push(flags);
+            if new_bg {
+                out.extend_from_slice(px(bg_at));
+            }
+            if new_fg {
+                out.extend_from_slice(px(subrects[0].0));
+            }
+            out.push(subrects.len() as u8);
+            for &(i, xy, wh) in &subrects {
+                if !mono {
+                    out.extend_from_slice(px(i));
+                }
+                out.extend([xy, wh]);
+            }
+            bg = Some(bg_key);
+            fg = if mono { Some(fg_key) } else { None };
+        }
+    }
+}
+
+fn put_run(out: &mut Vec<u8>, len: usize) {
+    let mut v = len - 1;
+    while v >= 255 {
+        out.push(255);
+        v -= 255;
+    }
+    out.push(v as u8);
+}
+fn run_bytes(len: usize) -> usize {
+    (len - 1) / 255 + 1
+}
+
+/// ZRLE tile data (before zlib), choosing per 64×64 tile the smallest of
+/// solid, packed palette, plain RLE, palette RLE and raw. `skip` is the
+/// byte [`omitted`] from each CPIXEL.
+pub(crate) fn encode_zrle(
+    wire: &[u8],
+    bpp: usize,
+    skip: Option<usize>,
+    w: usize,
+    h: usize,
+    out: &mut Vec<u8>,
+) {
+    let c = bpp - usize::from(skip.is_some());
+    let cpixel = |out: &mut Vec<u8>, px: &[u8]| match skip {
+        Some(s) => {
+            out.extend_from_slice(&px[..s]);
+            out.extend_from_slice(&px[s + 1..]);
+        }
+        None => out.extend_from_slice(px),
+    };
+    let (mut bytes, mut keys) = (vec![], vec![]);
+    let mut palette: Vec<usize> = Vec::with_capacity(128);
+    let mut index = std::collections::HashMap::<u32, u8>::with_capacity(256);
+    let mut runs: Vec<(usize, usize)> = vec![];
+    for y in (0..h).step_by(64) {
+        for x in (0..w).step_by(64) {
+            let tw = 64.min(w - x);
+            let th = 64.min(h - y);
+            let n = tw * th;
+            gather(wire, bpp, w, (x, y, tw, th), &mut bytes, &mut keys);
+            let px = |i: usize| &bytes[i * bpp..(i + 1) * bpp];
+            palette.clear();
+            index.clear();
+            runs.clear();
+            let mut fits = true;
+            let mut start = 0;
+            for i in 0..n {
+                if fits && !index.contains_key(&keys[i]) {
+                    if palette.len() == 127 {
+                        fits = false;
+                    } else {
+                        index.insert(keys[i], palette.len() as u8);
+                        palette.push(i);
+                    }
+                }
+                if i + 1 == n || keys[i + 1] != keys[i] {
+                    runs.push((start, i + 1 - start));
+                    start = i + 1;
+                }
+            }
+            if fits && palette.len() == 1 {
+                out.push(1);
+                cpixel(out, px(0));
+                continue;
+            }
+            let raw = n * c;
+            let plain: usize = runs.iter().map(|&(_, len)| c + run_bytes(len)).sum();
+            let (packed, bits, pal_rle) = if fits {
+                let p = palette.len();
+                let bits = if p <= 2 {
+                    1
+                } else if p <= 4 {
+                    2
+                } else {
+                    4
+                };
+                let packed = if p <= 16 {
+                    p * c + th * (tw * bits).div_ceil(8)
+                } else {
+                    usize::MAX
+                };
+                let pal_rle = p * c
+                    + runs
+                        .iter()
+                        .map(|&(_, len)| if len == 1 { 1 } else { 1 + run_bytes(len) })
+                        .sum::<usize>();
+                (packed, bits, pal_rle)
+            } else {
+                (usize::MAX, 0, usize::MAX)
+            };
+            let best = raw.min(plain).min(packed).min(pal_rle);
+            if best == raw {
+                out.push(0);
+                for i in 0..n {
+                    cpixel(out, px(i));
+                }
+            } else if best == packed {
+                out.push(palette.len() as u8);
+                for &i in &palette {
+                    cpixel(out, px(i));
+                }
+                for row in 0..th {
+                    let (mut byte, mut used) = (0u8, 0);
+                    for col in 0..tw {
+                        byte = byte << bits | index[&keys[row * tw + col]];
+                        used += bits;
+                        if used == 8 {
+                            out.push(byte);
+                            (byte, used) = (0, 0);
+                        }
+                    }
+                    if used != 0 {
+                        out.push(byte << (8 - used));
+                    }
+                }
+            } else if best == pal_rle {
+                out.push(128 | palette.len() as u8);
+                for &i in &palette {
+                    cpixel(out, px(i));
+                }
+                for &(i, len) in &runs {
+                    let idx = index[&keys[i]];
+                    if len == 1 {
+                        out.push(idx);
+                    } else {
+                        out.push(128 | idx);
+                        put_run(out, len);
+                    }
+                }
+            } else {
+                out.push(128);
+                for &(i, len) in &runs {
+                    cpixel(out, px(i));
+                    put_run(out, len);
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -300,5 +595,146 @@ mod tests {
         assert!(hextile(&mut Reader::new(&[0]), PixelFormat::RGBX, 1, 1).is_err());
         b[11] = 0xff;
         assert!(hextile(&mut Reader::new(&b), PixelFormat::RGBX, 17, 1).is_err());
+    }
+
+    fn formats() -> Vec<PixelFormat> {
+        let rgb565 = PixelFormat {
+            bits_per_pixel: 16,
+            depth: 16,
+            red_max: 31,
+            green_max: 63,
+            blue_max: 31,
+            red_shift: 11,
+            green_shift: 5,
+            blue_shift: 0,
+            ..PixelFormat::RGBX
+        };
+        vec![
+            PixelFormat::RGBX,
+            PixelFormat {
+                red_shift: 24,
+                green_shift: 16,
+                blue_shift: 8,
+                big_endian: true,
+                ..PixelFormat::RGBX
+            },
+            rgb565,
+            PixelFormat {
+                big_endian: true,
+                ..rgb565
+            },
+        ]
+    }
+    /// Scenes that exercise each choice: solid, two colours, a few, many
+    /// with runs, noise, and stripes whose runs pass 255.
+    fn scenes(w: usize, h: usize) -> Vec<Vec<[u8; 4]>> {
+        let mut seed = 0x9e3779b9u32;
+        let mut rnd = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 17;
+            seed ^= seed << 5;
+            seed
+        };
+        let colours: Vec<[u8; 4]> = (0..200)
+            .map(|_| {
+                let v = rnd().to_le_bytes();
+                [v[0], v[1], v[2], 255]
+            })
+            .collect();
+        let n = w * h;
+        let mut out = vec![
+            vec![colours[0]; n],
+            (0..n)
+                .map(|i| colours[usize::from((i % w) * 7 % 11 == 0 || i / w == 3)])
+                .collect(),
+            (0..n).map(|i| colours[(i / 5 + i % w / 9) % 5]).collect(),
+            (0..n).map(|i| colours[(i / 3) % 40]).collect(),
+            (0..n).map(|i| colours[(i / 17) % 200]).collect(),
+            (0..n).map(|i| colours[usize::from(i * 2 >= n)]).collect(),
+            (0..n).map(|i| colours[i / 300 % 200]).collect(),
+        ];
+        out.push(
+            (0..n)
+                .map(|_| {
+                    let v = rnd().to_le_bytes();
+                    [v[0], v[1], v[2], 7]
+                })
+                .collect(),
+        );
+        out
+    }
+    fn wire(f: PixelFormat, pixels: &[[u8; 4]]) -> (Vec<u8>, Vec<[u8; 4]>) {
+        let mut b = vec![];
+        for &p in pixels {
+            f.write(p, &mut b).unwrap();
+        }
+        let expect = b.chunks_exact(f.bytes()).map(|c| f.read(c).unwrap()).collect();
+        (b, expect)
+    }
+    #[test]
+    fn encoders_round_trip_every_scene_and_format() {
+        for f in formats() {
+            for (w, h) in [(1, 1), (16, 16), (17, 3), (64, 64), (130, 70)] {
+                for (k, scene) in scenes(w, h).iter().enumerate() {
+                    let (b, expect) = wire(f, scene);
+                    let mut hx = vec![];
+                    encode_hextile(&b, f.bytes(), w, h, &mut hx);
+                    let mut r = Reader::new(&hx);
+                    assert_eq!(hextile(&mut r, f, w, h).unwrap(), expect, "hextile {f:?} {w}x{h} #{k}");
+                    assert_eq!(r.pos, hx.len());
+                    assert!(hx.len() <= b.len() + w.div_ceil(16) * h.div_ceil(16));
+                    let mut z = vec![];
+                    encode_zrle(&b, f.bytes(), omitted(f), w, h, &mut z);
+                    assert_eq!(zrle(&z, f, w, h).unwrap(), expect, "zrle {f:?} {w}x{h} #{k}");
+                    let c = f.bytes() - usize::from(omitted(f).is_some());
+                    assert!(z.len() <= w * h * c + w.div_ceil(64) * h.div_ceil(64));
+                }
+            }
+        }
+    }
+    #[test]
+    fn encoders_choose_each_subencoding() {
+        let f = PixelFormat::RGBX;
+        let mode = |pixels: &[[u8; 4]], w, h| {
+            let (b, _) = wire(f, pixels);
+            let mut z = vec![];
+            encode_zrle(&b, 4, omitted(f), w, h, &mut z);
+            z[0]
+        };
+        let a = [1, 2, 3, 255];
+        let b = [9, 8, 7, 255];
+        assert_eq!(mode(&[a; 64 * 64], 64, 64), 1);
+        let checker: Vec<_> = (0..64 * 64).map(|i| if (i + i / 64) % 2 == 0 { a } else { b }).collect();
+        assert_eq!(mode(&checker, 64, 64), 2);
+        // Two long runs: plain RLE beats a palette.
+        let halves: Vec<_> = (0..64 * 64).map(|i| if i < 2048 { a } else { b }).collect();
+        assert_eq!(mode(&halves, 64, 64), 128);
+        // 40 colours in runs of 3: palette RLE.
+        let pal: Vec<_> = (0..64 * 64).map(|i| [(i / 3 % 40) as u8, 0, 0, 255]).collect();
+        assert_eq!(mode(&pal, 64, 64), 128 | 40);
+        let runs: Vec<_> = (0..64 * 64).map(|i| [(i / 32) as u8, 0, 0, 255]).collect();
+        assert_eq!(mode(&runs, 64, 64), 128);
+        let noise: Vec<_> = (0..64 * 64u32)
+            .map(|i| {
+                let v = i.wrapping_mul(2654435761).to_le_bytes();
+                [v[3], v[2], v[1], 255]
+            })
+            .collect();
+        assert_eq!(mode(&noise, 64, 64), 0);
+
+        let hx = |pixels: &[[u8; 4]], w, h| {
+            let (b, _) = wire(f, pixels);
+            let mut o = vec![];
+            encode_hextile(&b, 4, w, h, &mut o);
+            o
+        };
+        // Two solid tiles: the second carries the background, one byte.
+        assert_eq!(hx(&[a; 32 * 16], 32, 16), vec![2, 1, 2, 3, 0, 0]);
+        // A mono tile: bg + fg + one subrect.
+        let mut t = vec![a; 256];
+        t[17] = b;
+        t[18] = b;
+        assert_eq!(hx(&t, 16, 16), vec![14, 1, 2, 3, 0, 9, 8, 7, 0, 1, 0x11, 0x10]);
+        assert_eq!(hx(&noise[..256], 16, 16)[0], 1);
     }
 }
