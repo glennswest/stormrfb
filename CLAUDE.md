@@ -34,8 +34,8 @@ or cargo-fuzz, and no `wasm-bindgen` on `PATH`. So the WASM package, the
 browser/noVNC checks in `tools/validate.sh` and fuzzing cannot be rerun
 today. Installing them is a host change for the owner, not something to
 work around (stormcentral#64). clippy and rustfmt are there: workspace
-clippy `-D warnings` and `fmt --check` pass (2026-09-27). The `test/`
-crate does not yet (#12).
+and `test/` crate clippy `-D warnings` and `fmt --check` pass (2026-10-10,
+f6f316d, #12).
 
 **Shipping:** no golden of its own. stormconsole vendors the built web
 package (`web/src/lib/vendor/stormrfb/VERSION`), and stormrdp pins the
@@ -119,7 +119,8 @@ Nothing built yet.
       one answer per update, the latest
 - [x] wasm `can_resize`/`resize`/`resize_status`; web `connect().resize`
 - [x] tests (db52e70); docs; CHANGELOG
-- [ ] sc-build: fmt/clippy/workspace tests/test medium — builds of db52e70
+- [x] sc-build at f6f316d (2026-10-10): fmt, clippy -D warnings, 40
+      workspace tests, test/ medium 14 + 1 skip, all green. Earlier builds of db52e70
       and 06a29dc cancelled waiting for a slot (stormcentral#536)
 - BLOCKED 2026-10-07: proposed --after stormcentral#536
 - 2026-10-07 17:40Z: reviewed 8126f56 by hand against the test crate
@@ -130,14 +131,17 @@ Nothing built yet.
 - Not checkable here: the JS test (no wasm target, stormcentral#64); a real
   qemu answering SetDesktopSize (needs virtio-gpu/-vga std with ui-info)
 
-### Active — #12 test-crate lint (2026-10-07)
+### Done — #12 test-crate lint (2026-10-07, closed 2026-10-10)
 
 - [x] fix clippy's `is_multiple_of` at test/src/session.rs:80 (5d41ca4);
       sc-build at 15efd10: test crate clippy -D warnings passes
 - [x] rustfmt `test/`: the build VM at e2cfdc8 printed the check's diff
       (8 hunks); applied by hand, as there is no toolchain on this VM
 - [x] README "Build and test": the test crate's clippy and fmt commands
-- [ ] sc-build: workspace + test crate clippy -D warnings and fmt --check
+- [x] sc-build at f6f316d (2026-10-10): workspace + test crate fmt
+      --check and clippy -D warnings, 40 workspace tests, test/ medium
+      14 + 1 skip. The workspace fmt failure on #6's code (#26) was fixed
+      in the same commit
 - BLOCKED 2026-10-07 16:30Z: 5 sc-builds of a860a8b cancelled while
   waiting for a build-VM slot (every project; stormcentral#536)
 - Still blocked 2026-10-07 ~17:30Z: the build of fe48928 (fmt --check and
