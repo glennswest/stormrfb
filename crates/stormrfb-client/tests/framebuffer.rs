@@ -86,7 +86,11 @@ fn extended_desktop_size_reallocates_only_on_a_new_size() {
             height: 1
         }
     );
-    assert_eq!(&fb.rgba()[..4], &[5, 6, 7, 255], "same size keeps the pixels");
+    assert_eq!(
+        &fb.rgba()[..4],
+        &[5, 6, 7, 255],
+        "same size keeps the pixels"
+    );
     fb.apply(eds(3, 2)).unwrap();
     assert_eq!(fb.rgba().len(), 24);
     assert_eq!(&fb.rgba()[..4], &[0, 0, 0, 255]);

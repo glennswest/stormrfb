@@ -3,6 +3,10 @@
 ## [Unreleased]
 <!-- New unreleased changes go here -->
 
+### 2026-10-10
+- **chore:** rustfmt the #6 code in the workspace (6 hunks the build VM printed); `cargo fmt --all --check` failed on it (#26)
+- **chore:** test crate now passes `cargo fmt --check` and `cargo clippy --all-targets -D warnings` on the build VM (#12)
+
 ### 2026-10-07
 - **fix:** `Server::new` built the initial screen layout from `init` after moving it; first build of #6 (E0382) (#6)
 - **feat:** ExtendedDesktopSize (-308) and SetDesktopSize (251): the client can ask for a resize (#6). Codec: `EXTENDED_DESKTOP_SIZE` (advertised in `ENCODINGS` before -258, which stays last), `Screen`, `valid_layout`, `Rectangle::ExtendedDesktopSize { reason, status, width, height, screens }`, `ClientMessage::SetDesktopSize`, `RESIZE_*` reason and status constants, encode and decode. Client: `desktop_resize()`, `screens()`, `request_resize(w, h)`, `resize_status()`; a same-size layout does not resize or clear the framebuffer; the client `Event` enum is unchanged. Server: sends the layout once after -308 is advertised, sends `resize` as -308 when negotiated, reports requests as `Event::SetDesktopSize` for `accept_resize()`/`refuse_resize(status)`, and refuses requests outside `Limits` (2) or with an invalid layout (3) by itself. WASM `can_resize`/`resize`/`resize_status`; `web/client.js` `connect()` returns `resize(w, h)`

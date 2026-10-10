@@ -385,7 +385,10 @@ fn extended_desktop_size_request_accepted() {
     .unwrap();
     let b = s.update().unwrap().unwrap();
     exchange(&mut c, &mut s, b);
-    assert_eq!(&c.framebuffer().unwrap().rgba()[(5 * 8 + 7) * 4..], &[1, 2, 3, 255]);
+    assert_eq!(
+        &c.framebuffer().unwrap().rgba()[(5 * 8 + 7) * 4..],
+        &[1, 2, 3, 255]
+    );
 }
 #[test]
 fn extended_desktop_size_request_refused() {
@@ -412,7 +415,12 @@ fn extended_desktop_size_bad_requests_are_refused_without_an_event() {
         (4, 3, vec![Screen::whole(0, 8, 6)], RESIZE_INVALID_LAYOUT),
         (4, 3, vec![], RESIZE_INVALID_LAYOUT),
         // Larger than the session's limits.
-        (20, 20, vec![Screen::whole(0, 20, 20)], RESIZE_OUT_OF_RESOURCES),
+        (
+            20,
+            20,
+            vec![Screen::whole(0, 20, 20)],
+            RESIZE_OUT_OF_RESOURCES,
+        ),
     ] {
         let mut s = Server::new(
             ServerInit {

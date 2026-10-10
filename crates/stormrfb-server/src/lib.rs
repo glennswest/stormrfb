@@ -326,8 +326,8 @@ impl Server {
                             self.ack_extended_keys =
                                 encodings.contains(&QEMU_EXTENDED_KEY) && !self.extended_keys_acked;
                             let extended = encodings.contains(&EXTENDED_DESKTOP_SIZE);
-                            self.announce_layout = extended
-                                && (self.announce_layout || !self.extended_desktop_size());
+                            self.announce_layout =
+                                extended && (self.announce_layout || !self.extended_desktop_size());
                             self.encodings = encodings;
                         }
                         ClientMessage::SetDesktopSize {

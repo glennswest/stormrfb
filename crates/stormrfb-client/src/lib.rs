@@ -374,9 +374,7 @@ impl Client {
                                 }
                                 let f = self.framebuffer.as_mut().unwrap();
                                 if (width, height) != (f.width(), f.height()) {
-                                    events.push(
-                                        f.apply(Rectangle::DesktopSize { width, height })?,
-                                    );
+                                    events.push(f.apply(Rectangle::DesktopSize { width, height })?);
                                     self.resized = true;
                                 }
                             }

@@ -229,7 +229,10 @@ fn valid_layouts() {
     let one = [Screen::whole(0, 640, 480)];
     assert!(valid_layout(640, 480, &one));
     assert!(valid_layout(800, 600, &one));
-    assert!(!valid_layout(320, 480, &one), "screen outside the framebuffer");
+    assert!(
+        !valid_layout(320, 480, &one),
+        "screen outside the framebuffer"
+    );
     assert!(!valid_layout(640, 480, &[]), "no screens");
     assert!(!valid_layout(0, 480, &one));
     assert!(!valid_layout(640, 480, &[Screen::whole(0, 0, 480)]));
