@@ -12,7 +12,7 @@ paginate: true
 A set of crates, not a service: a sans-I/O codec, a client, a server
 session and a WASM/canvas binding for the browser.
 
-v0.2.0 · private, nothing published · `npx @marp-team/marp-cli docs/presentation.md`
+v0.3.0 · private, nothing published · `npx @marp-team/marp-cli docs/presentation.md`
 
 ---
 
@@ -215,6 +215,9 @@ secured a layer up), and a shipped native viewer (DESIGN.md decision 3).
 
 ## Status
 
+- **v0.3.0 (2026-11-07).** ExtendedDesktopSize (#6), ContinuousUpdates
+  + Fence (#7: 4.0x the updates/s of request/response at a 50 ms round
+  trip), and `stormrfb-vt` for a node's VT (#25).
 - **v0.2.0 (2026-10-06).** QEMU Extended Key Event (#1) was checked
   against a real qemu. The phase 1 gate (#4) passed: Alpine and a Windows
   Server installer were pixel-exact and driven through stormconsole's

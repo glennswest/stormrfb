@@ -3,6 +3,22 @@
 ## [Unreleased]
 <!-- New unreleased changes go here -->
 
+## [v0.3.0] — 2026-11-07
+
+### Added
+- ContinuousUpdates (-313) and Fence (-312), client and server, with a fence window on the server (#7)
+- ExtendedDesktopSize (-308) and SetDesktopSize: the client can ask for a size (#6)
+- `stormrfb-vt`: a VM's display full-screen on a Linux VT (#25)
+- `Client::pause`/`resume`/`updates`/`continuous` (#25, #7)
+- Real Hextile/ZRLE tile subencodings in `ServerEncoder` (#5)
+
+### Fixed
+- `Server::new` built the initial layout after moving `init` (#6)
+
+### Breaking
+- New variants: `Rectangle::ExtendedDesktopSize`, `ClientMessage::SetDesktopSize`, `ClientMessage::Fence`, `ClientMessage::EnableContinuousUpdates`, `ServerEvent::Fence`, `ServerEvent::EndOfContinuousUpdates`, `stormrfb_server::Event::SetDesktopSize`; `Client::pause()` returns `Result<Vec<u8>>` (#6, #7)
+
+### Daily log
 ### 2026-11-07
 - **feat:** ContinuousUpdates (-313) and Fence (-312), both ends (#7, owner's decision 2026-10-07). Codec: `CONTINUOUS_UPDATES`, `FENCE`, `FENCE_BLOCK_BEFORE`/`_BLOCK_AFTER`/`_SYNC_NEXT`/`_REQUEST`, `FENCE_FLAGS`, `FENCE_MAX_PAYLOAD` (64); `ClientMessage::Fence` (248) and `EnableContinuousUpdates` (150); `ServerEvent::Fence` (248) and `EndOfContinuousUpdates` (150), decoded and `encode_control`led; both in `ENCODINGS` before -308 (-258 stays last). Client: answers fence requests, turns continuous updates on once the server has sent a fence and EndOfContinuousUpdates, sends no update requests while they are on, re-enables after a resize, falls back to requests if the server ends them; `continuous()`; `send()` refuses `Fence`/`EnableContinuousUpdates`. Server: announces both after `SetEncodings`, answers client fences, pushes updates for the enabled area without requests (incremental requests ignored, non-incremental answered), a fence request after each, held while unanswered bytes reach `set_window` (`DEFAULT_WINDOW` 1 MiB); `continuous()`, `in_flight()`; a resize keeps them on over the new framebuffer; disabling is answered with EndOfContinuousUpdates
 - **BREAKING:** public enums gained variants (`ClientMessage::Fence`, `ClientMessage::EnableContinuousUpdates`, `ServerEvent::Fence`, `ServerEvent::EndOfContinuousUpdates`), and `Client::pause()` now returns `Result<Vec<u8>>`, the bytes to send (#7; `pause` is new since v0.2.0, from #25)

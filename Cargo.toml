@@ -7,7 +7,7 @@ resolver = "2"
 default-members = ["crates/stormrfb", "crates/stormrfb-client", "crates/stormrfb-server", "crates/stormrfb-vt"]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.85"
 publish = false

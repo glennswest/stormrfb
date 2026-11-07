@@ -4,7 +4,7 @@ RFB (RFC 6143) in Rust: the codec, a client for the browser, a server for
 the Rust VMM. Read [docs/DESIGN.md](docs/DESIGN.md) before touching
 anything. See [docs/VALIDATION.md](docs/VALIDATION.md) for measured status.
 
-**Version: 0.2.0** — private; phase 1 real-guest gate passed (#4), QEMU Extended Key Event (#1). Version locations: `Cargo.toml`, `Cargo.lock`, `fuzz/Cargo.toml`,
+**Version: 0.3.0** — private; ExtendedDesktopSize (#6), stormrfb-vt (#25), ContinuousUpdates + Fence (#7); v0.2.0: QEMU Extended Key Event (#1), phase 1 real-guest gate (#4). Version locations: `Cargo.toml`, `Cargo.lock`, `fuzz/Cargo.toml`,
 `fuzz/Cargo.lock`, `test/Cargo.lock` (path deps), `web/package.json`, this file.
 
 ## What this is for, in one line each
@@ -155,7 +155,7 @@ as the measurement.
       continuous 73.5 (4.0x), exact (docs/VALIDATION.md). Earlier runs:
       59fb794 missing import; b538400 -258 in the request client (a test bug)
 - [x] docs; CHANGELOG; close #7
-- [ ] v0.3.0 (breaking: #6, #25's pause, #7)
+- [x] v0.3.0 (breaking: #6, #25's pause, #7), tagged 2026-11-07
 
 ### Active — #6 ExtendedDesktopSize (-308) + SetDesktopSize (2026-10-07)
 
@@ -177,7 +177,7 @@ as the measurement.
   (no compile issue found); one sc-build of HEAD (workspace tests, clippy,
   fmt; test crate clippy/fmt; test/ short + medium) retrying until the
   build-VM drain ends (stormcentral#541, due ~18:11Z)
-- [ ] then v0.3.0 (breaking enum variants), close #6
+- [x] then v0.3.0 (breaking enum variants, 2026-11-07); close #6
 - Not checkable here: the JS test (no wasm target, stormcentral#64); a real
   qemu answering SetDesktopSize (needs virtio-gpu/-vga std with ui-info)
 
