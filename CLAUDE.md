@@ -74,6 +74,29 @@ at `29305ab`). Test container: `test/` (#8). Deck: `docs/presentation.md`
 (#3). Open: #1 (P2), #4 (P2), #5–#7 (P3), #10 runner re-run, #11 slide
 overflow, #12 test-crate lint.
 
+### Active — #25 stormrfb-vt: a VM's display full-screen on a VT (2026-11-07)
+
+stormcos#228: desktops on tty5/tty6. A new binary crate `crates/stormrfb-vt`
+(an RFB client that draws to KMS), with its DRM/VT code adapted from
+stormpanel (`drm.rs`, `vt.rs`, its Terminus font).
+- [ ] client: `pause()` / `resume()` (no update requests while the VT is
+      away; a full one back) and `updates()`; non-breaking additions
+- [ ] `stormrfb-vt` lib: `Viewer` (sans-I/O: bytes and evdev events in,
+      bytes and VT switches out; scaled XRGB canvas; a frame is shown only
+      once every pixel is fresh), `keys` (evdev → XT scancode + US keysym),
+      `Fit` (aspect-kept scale, display ↔ guest coordinates)
+- [ ] binary: VT_PROCESS + KD_GRAPHICS + K_OFF (Alt+Fn / Ctrl+Alt+Fn handled
+      here with VT_ACTIVATE), DRM dumb buffers, evdev keyboards/pointers
+      (abs + rel), vnc.sock / `--connect`, reconnect with backoff, status
+      screen while the VM is down, cursor (-239) drawn locally
+- [ ] tests against `stormrfb-server`: known frame, keystroke, click,
+      release/acquire with no stale frame
+- [ ] sc-build: fmt, clippy -D warnings, workspace tests, musl release build
+- [ ] golden: needs a registry entry (`component add stormrfb-vt`, master
+      runs it via `stormcentral note`); licence #24 may block the SBOM gate
+- [ ] stormcos wiring on tty5/tty6 is stormcos#228's; absolute pointer on
+      qemu is stormvm#76
+
 ### Done — #5 real Hextile/ZRLE tile subencodings (2026-10-07)
 
 Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
