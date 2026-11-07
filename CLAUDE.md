@@ -177,7 +177,8 @@ as the measurement.
   (no compile issue found); one sc-build of HEAD (workspace tests, clippy,
   fmt; test crate clippy/fmt; test/ short + medium) retrying until the
   build-VM drain ends (stormcentral#541, due ~18:11Z)
-- [x] then v0.3.0 (breaking enum variants, 2026-11-07); close #6
+- [x] v0.3.0 tagged at 7491d00 (2026-11-07)
+- [ ] close #6 (verified at f6f316d; left for the owner, 2026-11-07)
 - Not checkable here: the JS test (no wasm target, stormcentral#64); a real
   qemu answering SetDesktopSize (needs virtio-gpu/-vga std with ui-info)
 
