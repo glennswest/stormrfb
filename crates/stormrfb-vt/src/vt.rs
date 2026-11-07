@@ -61,7 +61,13 @@ extern "C" fn on_signal(sig: libc::c_int) {
 
 /// Handlers without SA_RESTART, so a sleeping main loop wakes on a switch.
 pub fn install_signals() {
-    for s in [libc::SIGUSR1, libc::SIGUSR2, libc::SIGTERM, libc::SIGINT, libc::SIGHUP] {
+    for s in [
+        libc::SIGUSR1,
+        libc::SIGUSR2,
+        libc::SIGTERM,
+        libc::SIGINT,
+        libc::SIGHUP,
+    ] {
         let mut sa: libc::sigaction = unsafe { std::mem::zeroed() };
         sa.sa_sigaction = on_signal as *const () as usize;
         unsafe {
@@ -212,7 +218,9 @@ fn vt_number(fd: i32) -> io::Result<u16> {
     if maj != 4 || !(1..=63).contains(&min) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("fd {fd} is not a virtual terminal (device {maj}:{min}); run on a VT, e.g. stormpump's `tty tty5`"),
+            format!(
+                "fd {fd} is not a virtual terminal (device {maj}:{min}); run on a VT, e.g. stormpump's `tty tty5`"
+            ),
         ));
     }
     Ok(min as u16)

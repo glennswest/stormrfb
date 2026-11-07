@@ -65,7 +65,10 @@ impl Fit {
     /// The screen columns (relative to the image) whose guest column lies
     /// in `from..to`: the first `i` with `i * src_w / w >= from`.
     fn span(from: usize, to: usize, src: usize, dst: usize) -> (usize, usize) {
-        ((from * dst).div_ceil(src), (to * dst).div_ceil(src).min(dst))
+        (
+            (from * dst).div_ceil(src),
+            (to * dst).div_ceil(src).min(dst),
+        )
     }
 
     /// Draws the guest pixels of `damage` (from `rgba`, the guest

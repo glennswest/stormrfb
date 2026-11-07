@@ -337,10 +337,7 @@ fn release_and_acquire_show_no_stale_frame() {
         heard.server
     );
     assert!(
-        matches!(
-            heard.server.last(),
-            Some(S::Pointer { buttons: 0, .. })
-        ),
+        matches!(heard.server.last(), Some(S::Pointer { buttons: 0, .. })),
         "the held button is let go of: {:?}",
         heard.server
     );
@@ -428,7 +425,10 @@ fn ctrl_alt_mode_passes_alt_f4_to_the_guest() {
         &mut s,
         &[
             Input::Key { code: 97, value: 1 },
-            Input::Key { code: 100, value: 1 },
+            Input::Key {
+                code: 100,
+                value: 1,
+            },
             Input::Key { code: 63, value: 1 },
         ],
     );

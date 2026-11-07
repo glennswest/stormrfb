@@ -228,7 +228,10 @@ impl Display {
                 v
             }
         };
-        let mut last = io::Error::new(io::ErrorKind::NotFound, "no /dev/dri/card* with a connected screen");
+        let mut last = io::Error::new(
+            io::ErrorKind::NotFound,
+            "no /dev/dri/card* with a connected screen",
+        );
         for c in cards {
             match Display::open_card(&c) {
                 Ok(d) => return Ok(d),
@@ -239,7 +242,11 @@ impl Display {
     }
 
     fn open_card(path: &str) -> io::Result<Display> {
-        let file = OpenOptions::new().read(true).write(true).custom_flags_cloexec().open(path)?;
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags_cloexec()
+            .open(path)?;
         let fd = file.as_raw_fd();
         let mut res = CardRes::default();
         ioctl(fd, GETRESOURCES, &mut res)?;
@@ -260,9 +267,16 @@ impl Display {
         };
         ioctl(fd, GETRESOURCES, &mut res2)?;
         for &cid in conns.iter().take(res2.count_connectors as usize) {
-            let Some((mode, enc_ids, cur_enc)) = connector(fd, cid)? else { continue };
-            let Some(crtc) = pick_crtc(fd, cur_enc, &enc_ids, &crtcs) else { continue };
-            let mut saved = Crtc { crtc_id: crtc, ..Default::default() };
+            let Some((mode, enc_ids, cur_enc)) = connector(fd, cid)? else {
+                continue;
+            };
+            let Some(crtc) = pick_crtc(fd, cur_enc, &enc_ids, &crtcs) else {
+                continue;
+            };
+            let mut saved = Crtc {
+                crtc_id: crtc,
+                ..Default::default()
+            };
             let saved = ioctl(fd, GETCRTC, &mut saved).ok().map(|_| saved);
             let mut d = Display {
                 file,
@@ -283,24 +297,56 @@ impl Display {
             }
             return Ok(d);
         }
-        Err(io::Error::new(io::ErrorKind::NotFound, "no connected connector with a mode"))
+        Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "no connected connector with a mode",
+        ))
     }
 
     fn create_buffer(&self) -> io::Result<Buffer> {
         let fd = self.file.as_raw_fd();
-        let mut c = CreateDumb { width: self.width as u32, height: self.height as u32, bpp: 32, ..Default::default() };
+        let mut c = CreateDumb {
+            width: self.width as u32,
+            height: self.height as u32,
+            bpp: 32,
+            ..Default::default()
+        };
         ioctl(fd, CREATE_DUMB, &mut c)?;
-        let mut fb = FbCmd { width: c.width, height: c.height, pitch: c.pitch, bpp: 32, depth: 24, handle: c.handle, ..Default::default() };
+        let mut fb = FbCmd {
+            width: c.width,
+            height: c.height,
+            pitch: c.pitch,
+            bpp: 32,
+            depth: 24,
+            handle: c.handle,
+            ..Default::default()
+        };
         ioctl(fd, ADDFB, &mut fb)?;
-        let mut m = MapDumb { handle: c.handle, ..Default::default() };
+        let mut m = MapDumb {
+            handle: c.handle,
+            ..Default::default()
+        };
         ioctl(fd, MAP_DUMB, &mut m)?;
         let map = unsafe {
-            libc::mmap(std::ptr::null_mut(), c.size as usize, libc::PROT_READ | libc::PROT_WRITE, libc::MAP_SHARED, fd, m.offset as libc::off_t)
+            libc::mmap(
+                std::ptr::null_mut(),
+                c.size as usize,
+                libc::PROT_READ | libc::PROT_WRITE,
+                libc::MAP_SHARED,
+                fd,
+                m.offset as libc::off_t,
+            )
         };
         if map == libc::MAP_FAILED {
             return Err(io::Error::last_os_error());
         }
-        Ok(Buffer { handle: c.handle, fb: fb.fb_id, pitch: c.pitch as usize, size: c.size as usize, map: map as *mut u8 })
+        Ok(Buffer {
+            handle: c.handle,
+            fb: fb.fb_id,
+            pitch: c.pitch as usize,
+            size: c.size as usize,
+            map: map as *mut u8,
+        })
     }
 
     pub fn set_master(&self) -> io::Result<()> {
@@ -364,7 +410,12 @@ impl Display {
         if self.flips && !self.pending {
             let back = 1 - self.front;
             self.copy_into(back, c, overlay);
-            let mut f = PageFlip { crtc_id: self.crtc, fb_id: self.bufs[back].fb, flags: PAGE_FLIP_EVENT, ..Default::default() };
+            let mut f = PageFlip {
+                crtc_id: self.crtc,
+                fb_id: self.bufs[back].fb,
+                flags: PAGE_FLIP_EVENT,
+                ..Default::default()
+            };
             match ioctl(fd, PAGE_FLIP, &mut f) {
                 Ok(()) => {
                     self.front = back;
@@ -383,7 +434,10 @@ impl Display {
         } else if !self.flips {
             self.copy_into(self.front, c, overlay);
         }
-        let mut d = DirtyFb { fb_id: self.bufs[self.front].fb, ..Default::default() };
+        let mut d = DirtyFb {
+            fb_id: self.bufs[self.front].fb,
+            ..Default::default()
+        };
         // ENOSYS: the driver scans out straight from memory; nothing to mark.
         let _ = ioctl(fd, DIRTYFB, &mut d);
         Ok(())
@@ -391,10 +445,20 @@ impl Display {
 
     /// Reads the flip-complete event (or gives up after `t`).
     fn wait_flip(&mut self, t: Duration) {
-        let mut p = libc::pollfd { fd: self.file.as_raw_fd(), events: libc::POLLIN, revents: 0 };
+        let mut p = libc::pollfd {
+            fd: self.file.as_raw_fd(),
+            events: libc::POLLIN,
+            revents: 0,
+        };
         if unsafe { libc::poll(&mut p, 1, t.as_millis() as i32) } > 0 {
             let mut buf = [0u8; 256];
-            unsafe { libc::read(self.file.as_raw_fd(), buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
+            unsafe {
+                libc::read(
+                    self.file.as_raw_fd(),
+                    buf.as_mut_ptr() as *mut libc::c_void,
+                    buf.len(),
+                )
+            };
         }
         self.pending = false;
     }
@@ -446,7 +510,10 @@ impl Drop for Display {
 /// A connected connector's preferred mode (else its first), its encoders and
 /// its current encoder.
 fn connector(fd: i32, id: u32) -> io::Result<Option<(ModeInfo, Vec<u32>, u32)>> {
-    let mut c = GetConnector { connector_id: id, ..Default::default() };
+    let mut c = GetConnector {
+        connector_id: id,
+        ..Default::default()
+    };
     ioctl(fd, GETCONNECTOR, &mut c)?;
     if c.connection != CONNECTED || c.count_modes == 0 {
         return Ok(None);
@@ -464,7 +531,12 @@ fn connector(fd: i32, id: u32) -> io::Result<Option<(ModeInfo, Vec<u32>, u32)>> 
     ioctl(fd, GETCONNECTOR, &mut c2)?;
     let n = (c2.count_modes as usize).min(modes.len());
     let modes = &modes[..n];
-    let Some(mode) = modes.iter().find(|m| m.type_ & MODE_TYPE_PREFERRED != 0).or(modes.first()).copied() else {
+    let Some(mode) = modes
+        .iter()
+        .find(|m| m.type_ & MODE_TYPE_PREFERRED != 0)
+        .or(modes.first())
+        .copied()
+    else {
         return Ok(None);
     };
     encs.truncate((c2.count_encoders as usize).min(encs.len()));
@@ -473,13 +545,19 @@ fn connector(fd: i32, id: u32) -> io::Result<Option<(ModeInfo, Vec<u32>, u32)>> 
 
 fn pick_crtc(fd: i32, cur_enc: u32, encs: &[u32], crtcs: &[u32]) -> Option<u32> {
     if cur_enc != 0 {
-        let mut e = GetEncoder { encoder_id: cur_enc, ..Default::default() };
+        let mut e = GetEncoder {
+            encoder_id: cur_enc,
+            ..Default::default()
+        };
         if ioctl(fd, GETENCODER, &mut e).is_ok() && e.crtc_id != 0 {
             return Some(e.crtc_id);
         }
     }
     for &id in encs {
-        let mut e = GetEncoder { encoder_id: id, ..Default::default() };
+        let mut e = GetEncoder {
+            encoder_id: id,
+            ..Default::default()
+        };
         if ioctl(fd, GETENCODER, &mut e).is_err() {
             continue;
         }

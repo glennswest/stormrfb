@@ -14,7 +14,10 @@ use crate::keys;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Input {
     /// A key or button: `value` 1 down, 0 up, 2 autorepeat.
-    Key { code: u16, value: i32 },
+    Key {
+        code: u16,
+        value: i32,
+    },
     /// An absolute pointer's position, 0.0–1.0 across the whole screen.
     AbsX(f64),
     AbsY(f64),
@@ -193,8 +196,7 @@ impl Viewer {
     /// Draws the guest's cursor (sent as the Cursor pseudo-encoding, so not
     /// in the framebuffer) at the pointer, into a screen-sized buffer.
     pub fn draw_cursor(&self, dst: &mut [u32], stride: usize) {
-        let (Some(fit), Some(c), Some((gx, gy))) = (&self.fit, &self.cursor, self.pointer())
-        else {
+        let (Some(fit), Some(c), Some((gx, gy))) = (&self.fit, &self.cursor, self.pointer()) else {
             return;
         };
         fit.sprite(
@@ -328,11 +330,7 @@ impl Viewer {
                 usize::from(fb.height()),
             ));
         }
-        self.client
-            .resume()
-            .map(Action::Send)
-            .into_iter()
-            .collect()
+        self.client.resume().map(Action::Send).into_iter().collect()
     }
 
     /// One input event. Ignored while the VT is away or before the
@@ -367,7 +365,11 @@ impl Viewer {
                     if self.cursor.is_some() {
                         self.changed = true;
                     }
-                    return self.pointer_message().map(Action::Send).into_iter().collect();
+                    return self
+                        .pointer_message()
+                        .map(Action::Send)
+                        .into_iter()
+                        .collect();
                 }
                 return vec![];
             }
@@ -408,7 +410,10 @@ impl Viewer {
         for _ in 0..n.unsigned_abs().min(16) {
             for b in [self.buttons | bit, self.buttons] {
                 let (x, y) = self.pointer().unwrap_or((0, 0));
-                if let Ok(m) = self.client.send(ClientMessage::Pointer { buttons: b, x, y }) {
+                if let Ok(m) = self
+                    .client
+                    .send(ClientMessage::Pointer { buttons: b, x, y })
+                {
                     out.push(Action::Send(m));
                 }
             }
@@ -450,10 +455,7 @@ impl Viewer {
             2 if !known => return vec![],
             _ => {}
         }
-        self.key(down, code)
-            .map(Action::Send)
-            .into_iter()
-            .collect()
+        self.key(down, code).map(Action::Send).into_iter().collect()
     }
 
     fn switch_to(&self, code: u16) -> Option<u16> {

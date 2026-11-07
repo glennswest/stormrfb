@@ -1,6 +1,10 @@
 [workspace]
 members = ["crates/stormrfb", "crates/stormrfb-client", "crates/stormrfb-server", "crates/stormrfb-wasm", "crates/stormrfb-vt"]
 resolver = "2"
+# A plain `cargo build`/`cargo test` (the image build, for musl) leaves out the
+# WASM binding: its `cdylib` is unsupported on musl and only warns there.
+# `--workspace` still builds and tests it (#25).
+default-members = ["crates/stormrfb", "crates/stormrfb-client", "crates/stormrfb-server", "crates/stormrfb-vt"]
 
 [workspace.package]
 version = "0.2.0"

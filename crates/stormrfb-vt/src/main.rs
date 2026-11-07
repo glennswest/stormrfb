@@ -210,11 +210,9 @@ impl Console {
             }
         }
         let r = match viewer.and_then(|v| v.frame().map(|f| (v, f))) {
-            Some((v, frame)) => self
-                .disp
-                .present(frame, &|buf: &mut [u32], stride: usize| {
-                    v.draw_cursor(buf, stride)
-                }),
+            Some((v, frame)) => self.disp.present(frame, &|buf: &mut [u32], stride: usize| {
+                v.draw_cursor(buf, stride)
+            }),
             None => self
                 .disp
                 .present(&self.status, &|_: &mut [u32], _: usize| {}),
@@ -310,7 +308,12 @@ fn run(args: &Args) -> Result<(), String> {
         if ended.was_ready {
             backoff = Duration::from_secs(1);
         }
-        log(&format!("{}: {}; retrying in {} s", args.label, ended.why, backoff.as_secs()));
+        log(&format!(
+            "{}: {}; retrying in {} s",
+            args.label,
+            ended.why,
+            backoff.as_secs()
+        ));
         // Wait out the backoff, still switching VTs and counting down.
         let until = Instant::now() + backoff;
         while !vt::QUIT.load(Ordering::SeqCst) {
