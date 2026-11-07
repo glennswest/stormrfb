@@ -147,8 +147,10 @@ fn connected(opts: Options) -> (Viewer, Server) {
 fn a_known_frame_is_on_the_screen() {
     let (v, _s) = connected(no_resize());
     assert_shows(&v, &picture(1));
-    // The server acknowledged -258, so keys go as scancodes.
+    // The server acknowledged -258, so keys go as scancodes, and offered
+    // ContinuousUpdates and Fence, so updates come without requests.
     assert!(v.client().extended_keys());
+    assert!(v.client().continuous());
 }
 
 #[test]
@@ -341,8 +343,9 @@ fn release_and_acquire_show_no_stale_frame() {
         "the held button is let go of: {:?}",
         heard.server
     );
-    // Away: input is not taken, and the guest's screen changes. The request
-    // outstanding at release is answered once; nothing is asked after it.
+    // Away: input is not taken, and the guest's screen changes. Continuous
+    // updates were stopped at release, and nothing is asked for.
+    assert!(!v.client().continuous());
     assert!(v.input(Input::Key { code: 30, value: 1 }).is_empty());
     s.damage(whole(), &picture(2)).unwrap();
     pump(&mut v, &mut s, vec![]);
@@ -358,6 +361,7 @@ fn release_and_acquire_show_no_stale_frame() {
     assert!(v.take_changed());
     pump(&mut v, &mut s, acquired);
     assert_shows(&v, &picture(3));
+    assert!(v.client().continuous(), "back on after acquire");
     // And it carries on: incremental updates after it.
     s.damage(whole(), &picture(4)).unwrap();
     pump(&mut v, &mut s, vec![]);

@@ -47,6 +47,11 @@ pub enum ServerEvent {
     Bell,
     CutText(Vec<u8>),
     ColourMap { first: u16, colors: Vec<[u16; 3]> },
+    /// Fence (248): a request (with `FENCE_REQUEST`) or the answer to one.
+    Fence { flags: u32, payload: Vec<u8> },
+    /// EndOfContinuousUpdates (150): the server supports
+    /// `CONTINUOUS_UPDATES`, or has stopped sending them.
+    EndOfContinuousUpdates,
 }
 /// Incremental server-message decoder. Caller retains unconsumed bytes.
 /// Errors other than Incomplete poison the decoder, including malformed ZRLE.
@@ -228,6 +233,12 @@ impl ServerDecoder {
             3 => {
                 r.take(3)?;
                 ServerEvent::CutText(r.text(self.limits)?)
+            }
+            150 => ServerEvent::EndOfContinuousUpdates,
+            248 => {
+                r.take(3)?;
+                let (flags, payload) = read_fence(&mut r)?;
+                ServerEvent::Fence { flags, payload }
             }
             n => return Err(Error::Unsupported(i32::from(n))),
         };
@@ -497,6 +508,11 @@ impl ServerEvent {
         let mut b = Vec::new();
         match self {
             Self::Bell => b.push(2),
+            Self::EndOfContinuousUpdates => b.push(150),
+            Self::Fence { flags, payload } => {
+                b.extend([248, 0, 0, 0]);
+                put_fence(&mut b, *flags, payload)?;
+            }
             Self::CutText(t) => {
                 b.extend([3, 0, 0, 0]);
                 put_text(&mut b, t, limits)?;

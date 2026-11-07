@@ -221,7 +221,7 @@ impl Viewer {
                     self.ready = true;
                     self.reframe();
                     if !self.active {
-                        self.client.pause();
+                        out.extend(self.pause()?);
                     }
                 }
                 Event::Resized { .. } => self.reframe(),
@@ -290,6 +290,13 @@ impl Viewer {
         self.changed = true;
     }
 
+    /// Pauses the client: with continuous updates on, the message that
+    /// stops them.
+    fn pause(&mut self) -> stormrfb::Result<Option<Action>> {
+        let b = self.client.pause()?;
+        Ok((!b.is_empty()).then_some(Action::Send(b)))
+    }
+
     /// The VT is being switched away: let go of every key and button the
     /// guest thinks is held, and stop asking for updates.
     pub fn release(&mut self) -> Vec<Action> {
@@ -304,7 +311,9 @@ impl Viewer {
                 self.buttons = 0;
                 out.extend(self.pointer_message().map(Action::Send));
             }
-            self.client.pause();
+            if let Ok(b) = self.pause() {
+                out.extend(b);
+            }
         }
         self.held.clear();
         self.swallowed.clear();

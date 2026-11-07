@@ -31,6 +31,9 @@ pub struct Scene {
     /// Write every message in pieces of this many bytes, both ways.
     pub chunk: Option<usize>,
     pub seed: u32,
+    /// Paint at most one frame per this long, as a guest's screen changes
+    /// at its own rate (`latency-50ms`); `None` paints as fast as updates go.
+    pub interval: Option<Duration>,
 }
 
 impl Scene {
@@ -43,6 +46,7 @@ impl Scene {
             resize: None,
             chunk: None,
             seed: 1,
+            interval: None,
         }
     }
 
@@ -171,6 +175,88 @@ pub fn listen(
     Ok((addr, handle))
 }
 
+/// A loopback TCP proxy to `target` that holds every chunk `one_way`
+/// before passing it on, both ways: a link with a round trip of twice that.
+/// It serves one connection and ends with it.
+pub fn delay_proxy(target: SocketAddr, one_way: Duration) -> std::io::Result<SocketAddr> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let addr = listener.local_addr()?;
+    thread::spawn(move || {
+        let Ok((down, _)) = listener.accept() else {
+            return;
+        };
+        let Ok(up) = TcpStream::connect(target) else {
+            return;
+        };
+        let _ = down.set_nodelay(true);
+        let _ = up.set_nodelay(true);
+        let (Ok(down2), Ok(up2)) = (down.try_clone(), up.try_clone()) else {
+            return;
+        };
+        let a = thread::spawn(move || pipe(down, up2, one_way));
+        pipe(up, down2, one_way);
+        let _ = a.join();
+    });
+    Ok(addr)
+}
+
+/// Copies `from` to `to`, each chunk sent `delay` after it was read.
+fn pipe(mut from: TcpStream, to: TcpStream, delay: Duration) {
+    let (tx, rx) = std::sync::mpsc::channel::<(Instant, Vec<u8>)>();
+    let writer = thread::spawn(move || {
+        let mut to = to;
+        for (at, bytes) in rx {
+            let due = at + delay;
+            let now = Instant::now();
+            if due > now {
+                thread::sleep(due - now);
+            }
+            if to.write_all(&bytes).is_err() {
+                break;
+            }
+        }
+        let _ = to.shutdown(std::net::Shutdown::Write);
+    });
+    let mut buf = vec![0; 64 * 1024];
+    loop {
+        match from.read(&mut buf) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => {
+                if tx.send((Instant::now(), buf[..n].to_vec())).is_err() {
+                    break;
+                }
+            }
+        }
+    }
+    drop(tx);
+    let _ = writer.join();
+}
+
+/// A whole session through [`delay_proxy`]: `one_way` each way.
+pub fn run_delayed(
+    scene: &Scene,
+    one_way: Duration,
+    client: impl FnOnce(&mut TcpStream) -> Result<Seen, String>,
+) -> std::io::Result<Run> {
+    let (addr, handle) = listen(scene.clone(), Security::None, Limits::default(), vec![])?;
+    let proxy = delay_proxy(addr, one_way)?;
+    let start = Instant::now();
+    let mut stream = TcpStream::connect(proxy)?;
+    stream.set_nodelay(true)?;
+    let seen = client(&mut stream);
+    let elapsed = start.elapsed();
+    let _ = stream.shutdown(std::net::Shutdown::Both);
+    drop(stream);
+    let served = handle
+        .join()
+        .map_err(|_| std::io::Error::other("server thread panicked"))?;
+    Ok(Run {
+        seen,
+        served,
+        elapsed,
+    })
+}
+
 /// A whole session: server thread, the given client on this one.
 pub fn run(
     scene: &Scene,
@@ -252,6 +338,7 @@ fn serve_inner(
     let mut k = 0;
     let mut buf = vec![0; 64 * 1024];
     let start = Instant::now();
+    let mut painted: Option<Instant> = None;
     while start.elapsed() < DEADLINE {
         match stream.read(&mut buf) {
             Ok(0) => return Ok(()),
@@ -282,7 +369,12 @@ fn serve_inner(
         if !ready {
             continue;
         }
-        if !staged && k < scene.frames {
+        let due = match (scene.interval, painted) {
+            (Some(i), Some(t)) => t.elapsed() >= i,
+            _ => true,
+        };
+        if !staged && k < scene.frames && due {
+            painted = Some(Instant::now());
             let repaint = matches!(scene.resize, Some((r, ..)) if r == k);
             if let Some((r, nw, nh)) = scene.resize
                 && r == k

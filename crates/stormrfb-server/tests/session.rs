@@ -457,8 +457,10 @@ fn server_resize_is_sent_as_extended_desktop_size() {
     let (mut c, mut s) = ready();
     s.resize(6, 2).unwrap();
     let b = s.update().unwrap().unwrap();
-    // One -308 rectangle, reason 0, alone in the update.
-    assert_eq!(b.len(), 4 + 12 + 4 + 16);
+    // One -308 rectangle, reason 0, alone in the update, and (continuous
+    // updates being on) the fence after it: 248, padding, flags, 4 bytes.
+    assert_eq!(b.len(), 4 + 12 + 4 + 16 + 13);
+    assert_eq!(b[36], 248);
     assert_eq!(&b[..4], &[0, 0, 0, 1]);
     assert_eq!(&b[4..8], &[0, 0, 0, 0], "reason 0, status 0");
     assert_eq!(&b[12..16], &EXTENDED_DESKTOP_SIZE.to_be_bytes());
@@ -491,25 +493,20 @@ fn set_desktop_size_without_negotiation_ends_the_session() {
 #[test]
 fn paused_client_asks_for_nothing_and_resumes_with_a_full_frame() {
     let (mut c, mut s) = ready();
+    // Our server offers ContinuousUpdates and Fence, so the client is on.
+    assert!(c.continuous() && s.continuous());
     let before = c.updates();
-    c.pause();
-    assert!(c.paused());
-    // The update in flight still arrives, and no request follows it.
-    s.damage(
-        Rect {
-            x: 1,
-            y: 1,
-            width: 1,
-            height: 1,
-        },
-        &[[1, 2, 3, 255]],
-    )
-    .unwrap();
-    let b = s.update().unwrap().unwrap();
-    let events = c.receive(&b).unwrap();
-    assert!(!events.iter().any(|e| matches!(e, C::Send(_))));
-    assert_eq!(c.updates(), before + 1);
-    // Damage while paused is not sent: there is no request.
+    // Pausing stops continuous updates; the server says so, and nothing
+    // follows: no request, no re-enable.
+    let stop = c.pause().unwrap();
+    assert!(c.paused() && !c.continuous());
+    let events = s.receive(&stop).unwrap();
+    assert!(!s.continuous());
+    let [S::Send(end)] = events.as_slice() else {
+        panic!("{events:?}")
+    };
+    assert_eq!(c.receive(end).unwrap(), vec![]);
+    // Damage while paused is not sent.
     s.damage(
         Rect {
             x: 3,
@@ -521,10 +518,11 @@ fn paused_client_asks_for_nothing_and_resumes_with_a_full_frame() {
     )
     .unwrap();
     assert!(s.update().unwrap().is_none());
-    // Resuming asks for the whole framebuffer, which carries it.
+    // Resuming asks for the whole framebuffer and turns them back on.
     let b = c.resume().unwrap();
-    assert!(!c.paused());
-    s.receive(&b).unwrap();
+    assert!(!c.paused() && c.continuous());
+    assert_eq!(s.receive(&b).unwrap(), vec![]);
+    assert!(s.continuous());
     let b = s.update().unwrap().unwrap();
     let events = c.receive(&b).unwrap();
     assert!(events.contains(&C::Damage(Rect {
@@ -533,6 +531,158 @@ fn paused_client_asks_for_nothing_and_resumes_with_a_full_frame() {
         ..Rect::default()
     })));
     assert_eq!(&c.framebuffer().unwrap().rgba()[44..48], &[4, 5, 6, 255]);
-    assert!(events.iter().any(|e| matches!(e, C::Send(_))));
-    assert_eq!(c.updates(), before + 2);
+    assert_eq!(c.updates(), before + 1);
+    // The update carried a fence, which the client answers.
+    let answers: Vec<_> = events
+        .iter()
+        .filter_map(|e| match e {
+            C::Send(b) => Some(b.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(answers.len(), 1);
+    assert!(s.in_flight() > 0);
+    s.receive(&answers[0]).unwrap();
+    assert_eq!(s.in_flight(), 0);
+}
+#[test]
+fn continuous_updates_are_pushed_and_held_by_the_fence_window() {
+    let (mut c, mut s) = ready();
+    assert!(c.continuous() && s.continuous());
+    s.set_window(1);
+    let px = |x| {
+        (
+            Rect {
+                x,
+                y: 0,
+                width: 1,
+                height: 1,
+            },
+            [[x as u8, 1, 2, 255]],
+        )
+    };
+    // No request needed: damage is pushed, with a fence after it.
+    let (r, p) = px(0);
+    s.damage(r, &p).unwrap();
+    let first = s.update().unwrap().expect("pushed");
+    assert!(s.in_flight() > 0);
+    // Unanswered, a 1-byte window holds the next one back.
+    let (r, p) = px(1);
+    s.damage(r, &p).unwrap();
+    assert!(s.update().unwrap().is_none(), "the window is full");
+    // The client draws the first and answers its fence; the next goes.
+    let mut answers = vec![];
+    for e in c.receive(&first).unwrap() {
+        if let C::Send(b) = e {
+            answers.push(b);
+        }
+    }
+    assert_eq!(answers.len(), 1, "a fence answer, and no update request");
+    s.receive(&answers[0]).unwrap();
+    assert_eq!(s.in_flight(), 0);
+    let b = s.update().unwrap().expect("the window opened");
+    c.receive(&b).unwrap();
+    assert_eq!(&c.framebuffer().unwrap().rgba()[4..8], &[1, 1, 2, 255]);
+    // Incremental requests are moot; a non-incremental one is answered.
+    let whole = Rect {
+        width: 4,
+        height: 3,
+        ..Rect::default()
+    };
+    let req = |incremental| {
+        ClientMessage::UpdateRequest {
+            incremental,
+            rect: whole,
+        }
+        .encode(Limits::default())
+        .unwrap()
+    };
+    s.set_window(DEFAULT_WINDOW);
+    s.receive(&req(true)).unwrap();
+    assert!(s.update().unwrap().is_none());
+    s.receive(&req(false)).unwrap();
+    assert!(s.update().unwrap().is_some());
+    // The client's own fence request is answered as it was asked, without
+    // the request bit and flags it does not know.
+    let ask = ClientMessage::Fence {
+        flags: FENCE_REQUEST | FENCE_SYNC_NEXT | 1 << 20,
+        payload: b"ping".to_vec(),
+    }
+    .encode(Limits::default())
+    .unwrap();
+    let events = s.receive(&ask).unwrap();
+    let [S::Send(b)] = events.as_slice() else {
+        panic!("{events:?}")
+    };
+    let mut d = ServerDecoder::new(PixelFormat::RGBX, Limits::default()).unwrap();
+    assert_eq!(
+        d.next(b).unwrap().0,
+        ServerEvent::Fence {
+            flags: FENCE_SYNC_NEXT,
+            payload: b"ping".to_vec()
+        }
+    );
+}
+#[test]
+fn continuous_updates_and_fences_need_their_encodings() {
+    let mut s = server(Security::None);
+    for b in [VERSION.to_vec(), vec![1], vec![1]] {
+        s.receive(&b).unwrap();
+    }
+    // Without -313/-312 advertised, nothing is announced and either
+    // message ends the session.
+    let events = s
+        .receive(
+            &ClientMessage::SetEncodings(vec![RAW])
+                .encode(Limits::default())
+                .unwrap(),
+        )
+        .unwrap();
+    assert_eq!(events, vec![]);
+    let enable = ClientMessage::EnableContinuousUpdates {
+        enable: true,
+        rect: Rect::default(),
+    }
+    .encode(Limits::default())
+    .unwrap();
+    assert_eq!(
+        s.receive(&enable),
+        Err(Error::Unsupported(CONTINUOUS_UPDATES))
+    );
+    let mut s = server(Security::None);
+    for b in [VERSION.to_vec(), vec![1], vec![1]] {
+        s.receive(&b).unwrap();
+    }
+    let fence = ClientMessage::Fence {
+        flags: FENCE_REQUEST,
+        payload: vec![],
+    }
+    .encode(Limits::default())
+    .unwrap();
+    assert_eq!(s.receive(&fence), Err(Error::Unsupported(FENCE)));
+    // Advertised: a fence request and EndOfContinuousUpdates, once each.
+    let mut s = server(Security::None);
+    for b in [VERSION.to_vec(), vec![1], vec![1]] {
+        s.receive(&b).unwrap();
+    }
+    let enc = ClientMessage::SetEncodings(vec![RAW, FENCE, CONTINUOUS_UPDATES])
+        .encode(Limits::default())
+        .unwrap();
+    let events = s.receive(&enc).unwrap();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[1], S::Send(vec![150]));
+    assert_eq!(s.receive(&enc).unwrap(), vec![]);
+    // Out of bounds, refused.
+    let far = ClientMessage::EnableContinuousUpdates {
+        enable: true,
+        rect: Rect {
+            x: 3,
+            y: 0,
+            width: 2,
+            height: 1,
+        },
+    }
+    .encode(Limits::default())
+    .unwrap();
+    assert!(s.receive(&far).is_err());
 }

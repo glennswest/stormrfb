@@ -7,7 +7,8 @@
 //!
 //! medium (< 30 min): short, then input, resize, fragmentation, hostile
 //! input both ways, mutated real streams, small limits, concurrent sessions,
-//! a 1080p moving window measured, and an optional real server.
+//! a 1080p moving window measured, updates/s over a 50 ms round trip with
+//! and without continuous updates, and an optional real server.
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::time::{Duration, Instant};
@@ -50,6 +51,7 @@ pub fn medium(env: &Env, r: &mut Report) {
     r.run("small-limits", small_limits);
     r.run("concurrent-sessions", concurrent_sessions);
     r.run("moving-window-1080p", moving_window_1080p);
+    r.run("latency-50ms", latency_50ms);
     r.run("real-server", || real_server(env));
 }
 
@@ -791,6 +793,57 @@ fn moving_window_1080p() -> Outcome {
         seen.bytes / u64::from(run.served.frames.max(1)),
         env::capacity().cpus
     ))
+}
+
+/// #7's measurement: a screen that changes 100 times a second, over a link
+/// with a 50 ms round trip (a delaying proxy, 25 ms each way). Request and
+/// response (a codec client that does not advertise -313/-312) can show at
+/// most one update per round trip; continuous updates (`Client`, which
+/// turns them on against this server) are not bound to it. Both must end
+/// exact; continuous must be at least twice the request/response rate.
+fn latency_50ms() -> Outcome {
+    let mut scene = Scene::new(1280, 720, 100);
+    scene.window = (320, 240);
+    scene.interval = Some(Duration::from_millis(10));
+    let one_way = Duration::from_millis(25);
+    let request_mode: Vec<i32> = ENCODINGS
+        .iter()
+        .copied()
+        .filter(|&e| e != CONTINUOUS_UPDATES && e != FENCE)
+        .collect();
+    let mut rates = vec![];
+    for (mode, continuous) in [("request/response", false), ("continuous", true)] {
+        let run = match session::run_delayed(&scene, one_way, |s| {
+            if continuous {
+                session::client(s, None, Limits::default(), &[], None)
+            } else {
+                session::codec_client(s, PixelFormat::RGBX, request_mode.clone(), Limits::default())
+            }
+        }) {
+            Ok(run) => run,
+            Err(e) => return io(e),
+        };
+        let seen = match run.seen {
+            Ok(seen) => seen,
+            Err(e) => fail!("{mode}: client: {e}; server: {:?}", run.served.error),
+        };
+        if let Err(e) = check(&scene, &seen, PixelFormat::RGBX) {
+            fail!("{mode}: {e}");
+        }
+        let secs = run.elapsed.as_secs_f64();
+        rates.push((mode, f64::from(run.served.frames) / secs, secs));
+    }
+    let (req, cont) = (rates[0].1, rates[1].1);
+    let line = format!(
+        "50 ms RTT, 1280x720, 100 frames painted at 100/s, all exact: request/response {req:.1} updates/s ({:.2} s), continuous {cont:.1} updates/s ({:.2} s), {:.1}x",
+        rates[0].2,
+        rates[1].2,
+        cont / req
+    );
+    if cont < 2.0 * req {
+        fail!("continuous updates not faster: {line}");
+    }
+    Outcome::Pass(line)
 }
 
 /// Read one full frame from a real RFB 3.8 server, shared, sending no

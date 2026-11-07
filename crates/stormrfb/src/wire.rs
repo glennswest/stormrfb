@@ -16,6 +16,29 @@ pub const QEMU_EXTENDED_KEY: i32 = -258;
 /// size or layout change in place of `DesktopSize`. After that the client
 /// may ask for a size with [`ClientMessage::SetDesktopSize`].
 pub const EXTENDED_DESKTOP_SIZE: i32 = -308;
+/// ContinuousUpdates. A server that supports it sends
+/// [`ServerEvent::EndOfContinuousUpdates`](crate::ServerEvent) after the
+/// `SetEncodings`; after that the client may send
+/// [`ClientMessage::EnableContinuousUpdates`], and the server then sends
+/// updates for that area without being asked.
+pub const CONTINUOUS_UPDATES: i32 = -313;
+/// Fence. A server that supports it sends a Fence request after the
+/// `SetEncodings`. Fences flow both ways ([`ClientMessage::Fence`],
+/// `ServerEvent::Fence`); a request is answered with the same payload and
+/// its flags without [`FENCE_REQUEST`].
+pub const FENCE: i32 = -312;
+/// Fence flags: everything before the fence is handled before it is answered.
+pub const FENCE_BLOCK_BEFORE: u32 = 1;
+/// Nothing after the fence is handled until it is answered.
+pub const FENCE_BLOCK_AFTER: u32 = 1 << 1;
+/// The message after the fence is handled together with it.
+pub const FENCE_SYNC_NEXT: u32 = 1 << 2;
+/// This fence asks for an answer; an answer does not carry it.
+pub const FENCE_REQUEST: u32 = 1 << 31;
+/// The flags this implementation understands; an answer carries only these.
+pub const FENCE_FLAGS: u32 = FENCE_BLOCK_BEFORE | FENCE_BLOCK_AFTER | FENCE_SYNC_NEXT;
+/// A fence payload is at most this long.
+pub const FENCE_MAX_PAYLOAD: usize = 64;
 pub const ENCODINGS: &[i32] = &[
     ZRLE,
     HEXTILE,
@@ -24,6 +47,8 @@ pub const ENCODINGS: &[i32] = &[
     CURSOR,
     DESKTOP_SIZE,
     LAST_RECT,
+    CONTINUOUS_UPDATES,
+    FENCE,
     EXTENDED_DESKTOP_SIZE,
     QEMU_EXTENDED_KEY,
 ];
@@ -157,6 +182,32 @@ pub enum ClientMessage {
         height: u16,
         screens: Vec<Screen>,
     },
+    /// Fence (message 248): a request (with [`FENCE_REQUEST`]) or the
+    /// answer to the server's. At most [`FENCE_MAX_PAYLOAD`] bytes of
+    /// payload. Send only after the server sent a fence.
+    Fence { flags: u32, payload: Vec<u8> },
+    /// EnableContinuousUpdates (message 150): start (`enable`) or stop
+    /// updates for `rect` without requests. Send only after the server sent
+    /// EndOfContinuousUpdates; a stop is answered with another.
+    EnableContinuousUpdates { enable: bool, rect: Rect },
+}
+/// Fence flags, a length byte and the payload (after the type and padding).
+pub(crate) fn put_fence(out: &mut Vec<u8>, flags: u32, payload: &[u8]) -> Result<()> {
+    if payload.len() > FENCE_MAX_PAYLOAD {
+        return Err(Error::Limit);
+    }
+    out.extend(flags.to_be_bytes());
+    out.push(payload.len() as u8);
+    out.extend(payload);
+    Ok(())
+}
+pub(crate) fn read_fence(r: &mut Reader<'_>) -> Result<(u32, Vec<u8>)> {
+    let flags = r.u32()?;
+    let n = usize::from(r.u8()?);
+    if n > FENCE_MAX_PAYLOAD {
+        return Err(Error::Limit);
+    }
+    Ok((flags, r.take(n)?.to_vec()))
 }
 impl ClientMessage {
     pub fn encode(&self, limits: Limits) -> Result<Vec<u8>> {
@@ -216,6 +267,14 @@ impl ClientMessage {
                 b.extend(width.to_be_bytes());
                 b.extend(height.to_be_bytes());
                 put_screens(&mut b, screens, 1)?;
+            }
+            Self::Fence { flags, payload } => {
+                b.extend([248, 0, 0, 0]);
+                put_fence(&mut b, *flags, payload)?;
+            }
+            Self::EnableContinuousUpdates { enable, rect } => {
+                b.extend([150, *enable as u8]);
+                put_rect(&mut b, *rect);
             }
         }
         if b.len() > limits.max_bytes {
@@ -279,6 +338,18 @@ impl ClientMessage {
                     height,
                     screens: read_screens(&mut r, n)?,
                 }
+            }
+            150 => {
+                let enable = boolean(r.u8()?)?;
+                Self::EnableContinuousUpdates {
+                    enable,
+                    rect: r.rect()?,
+                }
+            }
+            248 => {
+                r.take(3)?;
+                let (flags, payload) = read_fence(&mut r)?;
+                Self::Fence { flags, payload }
             }
             // QEMU client messages; submessage 0 is the extended key event.
             255 => match r.u8()? {

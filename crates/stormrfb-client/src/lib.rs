@@ -193,6 +193,16 @@ pub struct Client {
     resize_status: Option<u16>,
     paused: bool,
     updates: u64,
+    /// The server sent a fence (it supports -312).
+    server_fence: bool,
+    /// The server sent EndOfContinuousUpdates (it supports -313).
+    server_continuous: bool,
+    /// Continuous updates are enabled (asked for and not stopped).
+    continuous: bool,
+    /// The server stopped continuous updates on its own: do not ask again.
+    continuous_refused: bool,
+    /// Stops sent (by `pause`) whose EndOfContinuousUpdates has not come.
+    stops_sent: u32,
 }
 impl Client {
     pub fn new(password: Option<Vec<u8>>, limits: Limits) -> Self {
@@ -210,7 +220,41 @@ impl Client {
             resize_status: None,
             paused: false,
             updates: 0,
+            server_fence: false,
+            server_continuous: false,
+            continuous: false,
+            continuous_refused: false,
+            stops_sent: 0,
         }
+    }
+    /// Whether continuous updates (-313) are on: the server sends updates
+    /// without requests. The client turns them on by itself once the server
+    /// has shown it supports both ContinuousUpdates and Fence, as noVNC
+    /// does, and answers the server's fences.
+    pub fn continuous(&self) -> bool {
+        self.continuous
+    }
+    fn whole(&self) -> Rect {
+        self.framebuffer.as_ref().map_or(Rect::default(), |f| f.rect())
+    }
+    /// EnableContinuousUpdates for the whole framebuffer, when the server
+    /// takes it and it is not on, paused or refused.
+    fn enable_continuous(&mut self) -> Result<Option<Vec<u8>>> {
+        if !self.server_fence
+            || !self.server_continuous
+            || self.continuous
+            || self.continuous_refused
+            || self.paused
+        {
+            return Ok(None);
+        }
+        self.continuous = true;
+        ClientMessage::EnableContinuousUpdates {
+            enable: true,
+            rect: self.whole(),
+        }
+        .encode(self.limits)
+        .map(Some)
     }
     pub fn framebuffer(&self) -> Option<&Framebuffer> {
         self.framebuffer.as_ref()
@@ -241,9 +285,21 @@ impl Client {
     }
     /// Stop asking for updates: the update in flight still arrives, and no
     /// request follows it, so the server sends nothing more. For a viewer
-    /// that is not on screen (a console's VT switched away).
-    pub fn pause(&mut self) {
+    /// that is not on screen (a console's VT switched away). Returns bytes
+    /// to send: with continuous updates on, the message that stops them;
+    /// otherwise nothing.
+    pub fn pause(&mut self) -> Result<Vec<u8>> {
         self.paused = true;
+        if !self.continuous {
+            return Ok(vec![]);
+        }
+        self.continuous = false;
+        self.stops_sent += 1;
+        ClientMessage::EnableContinuousUpdates {
+            enable: false,
+            rect: self.whole(),
+        }
+        .encode(self.limits)
     }
     /// Whether [`Client::pause`] is in effect.
     pub fn paused(&self) -> bool {
@@ -251,18 +307,23 @@ impl Client {
     }
     /// Ask for updates again, starting with the whole framebuffer
     /// (non-incremental), so nothing drawn while paused is missed. Returns
-    /// the request to send.
+    /// the bytes to send: the request, and continuous updates turned back
+    /// on where the server takes them.
     pub fn resume(&mut self) -> Result<Vec<u8>> {
         if self.failed || self.handshake.is_some() {
             return Err(Error::Invalid("client not ready"));
         }
         self.paused = false;
         self.resized = false;
-        ClientMessage::UpdateRequest {
+        let mut b = ClientMessage::UpdateRequest {
             incremental: false,
-            rect: self.framebuffer.as_ref().unwrap().rect(),
+            rect: self.whole(),
         }
-        .encode(self.limits)
+        .encode(self.limits)?;
+        if let Some(e) = self.enable_continuous()? {
+            b.extend(e);
+        }
+        Ok(b)
     }
     /// FramebufferUpdates completed so far.
     pub fn updates(&self) -> u64 {
@@ -294,9 +355,14 @@ impl Client {
         }
         if matches!(
             message,
-            ClientMessage::SetPixelFormat(_) | ClientMessage::SetEncodings(_)
+            ClientMessage::SetPixelFormat(_)
+                | ClientMessage::SetEncodings(_)
+                | ClientMessage::Fence { .. }
+                | ClientMessage::EnableContinuousUpdates { .. }
         ) {
-            return Err(Error::Invalid("client owns format and encodings"));
+            return Err(Error::Invalid(
+                "client owns format, encodings, fences and continuous updates",
+            ));
         }
         if matches!(message, ClientMessage::QemuKey { .. }) && !self.extended_keys {
             return Err(Error::Unsupported(QEMU_EXTENDED_KEY));
@@ -420,7 +486,17 @@ impl Client {
                             }
                             ServerEvent::UpdateEnd => {
                                 self.updates += 1;
-                                if !self.paused {
+                                if self.continuous && self.resized {
+                                    // The same area, at the new size.
+                                    self.resized = false;
+                                    events.push(Event::Send(
+                                        ClientMessage::EnableContinuousUpdates {
+                                            enable: true,
+                                            rect: self.whole(),
+                                        }
+                                        .encode(self.limits)?,
+                                    ));
+                                } else if !self.paused && !self.continuous {
                                     events.push(Event::Send(
                                         ClientMessage::UpdateRequest {
                                             incremental: !self.resized,
@@ -429,6 +505,45 @@ impl Client {
                                         .encode(self.limits)?,
                                     ));
                                     self.resized = false;
+                                }
+                            }
+                            ServerEvent::Fence { flags, payload } => {
+                                self.server_fence = true;
+                                if flags & FENCE_REQUEST != 0 {
+                                    events.push(Event::Send(
+                                        ClientMessage::Fence {
+                                            flags: flags & FENCE_FLAGS,
+                                            payload,
+                                        }
+                                        .encode(self.limits)?,
+                                    ));
+                                }
+                                if let Some(b) = self.enable_continuous()? {
+                                    events.push(Event::Send(b));
+                                }
+                            }
+                            ServerEvent::EndOfContinuousUpdates => {
+                                self.server_continuous = true;
+                                if self.stops_sent > 0 {
+                                    // The answer to a pause()'s stop.
+                                    self.stops_sent -= 1;
+                                } else if self.continuous {
+                                    // Stopped by the server, not by pause():
+                                    // back to asking.
+                                    self.continuous = false;
+                                    self.continuous_refused = true;
+                                    if !self.paused {
+                                        events.push(Event::Send(
+                                            ClientMessage::UpdateRequest {
+                                                incremental: true,
+                                                rect: self.whole(),
+                                            }
+                                            .encode(self.limits)?,
+                                        ));
+                                    }
+                                }
+                                if let Some(b) = self.enable_continuous()? {
+                                    events.push(Event::Send(b));
                                 }
                             }
                             ServerEvent::Bell => events.push(Event::Bell),

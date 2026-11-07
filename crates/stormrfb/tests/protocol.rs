@@ -28,6 +28,19 @@ fn client_messages_roundtrip_and_fragment() {
             y: 51,
         },
         ClientMessage::CutText(b"clipboard\n".to_vec()),
+        ClientMessage::Fence {
+            flags: FENCE_REQUEST | FENCE_BLOCK_BEFORE,
+            payload: vec![1, 2, 3, 4],
+        },
+        ClientMessage::EnableContinuousUpdates {
+            enable: true,
+            rect: Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+        },
         ClientMessage::SetDesktopSize {
             width: 1920,
             height: 1080,
@@ -240,4 +253,67 @@ fn valid_layouts() {
         !valid_layout(640, 480, &[one[0], one[0]]),
         "duplicate screen ids"
     );
+}
+#[test]
+fn fence_and_continuous_updates_wire_layout_and_bounds() {
+    let l = Limits::default();
+    // Client Fence: 248, three padding bytes, flags, length, payload.
+    let b = ClientMessage::Fence {
+        flags: FENCE_BLOCK_AFTER,
+        payload: vec![9],
+    }
+    .encode(l)
+    .unwrap();
+    assert_eq!(b, [248, 0, 0, 0, 0, 0, 0, 2, 1, 9]);
+    // EnableContinuousUpdates: 150, the flag, then the rectangle.
+    let b = ClientMessage::EnableContinuousUpdates {
+        enable: false,
+        rect: Rect {
+            x: 1,
+            y: 2,
+            width: 3,
+            height: 4,
+        },
+    }
+    .encode(l)
+    .unwrap();
+    assert_eq!(b, [150, 0, 0, 1, 0, 2, 0, 3, 0, 4]);
+    // A payload over 64 bytes is refused both ways.
+    let long = ClientMessage::Fence {
+        flags: 0,
+        payload: vec![0; FENCE_MAX_PAYLOAD + 1],
+    };
+    assert_eq!(long.encode(l), Err(Error::Limit));
+    let mut wire = vec![248, 0, 0, 0, 0, 0, 0, 0, 65];
+    wire.extend([0; 65]);
+    assert_eq!(ClientMessage::decode(&wire, l), Err(Error::Limit));
+    // A bad enable flag.
+    assert!(ClientMessage::decode(&[150, 2, 0, 0, 0, 0, 0, 0, 0, 0], l).is_err());
+    // Server side: EndOfContinuousUpdates is one byte; a Fence as the
+    // client's, both through the decoder in pieces.
+    let end = ServerEvent::EndOfContinuousUpdates.encode_control(l).unwrap();
+    assert_eq!(end, [150]);
+    let fence = ServerEvent::Fence {
+        flags: FENCE_REQUEST,
+        payload: vec![],
+    };
+    let fb = fence.encode_control(l).unwrap();
+    assert_eq!(fb, [248, 0, 0, 0, 0x80, 0, 0, 0, 0]);
+    let mut d = ServerDecoder::new(PixelFormat::RGBX, l).unwrap();
+    for n in 0..fb.len() {
+        assert_eq!(d.next(&fb[..n]), Err(Error::Incomplete));
+    }
+    assert_eq!(d.next(&fb).unwrap(), (fence, fb.len()));
+    assert_eq!(
+        d.next(&end).unwrap(),
+        (ServerEvent::EndOfContinuousUpdates, 1)
+    );
+    let mut wire = vec![248, 0, 0, 0, 0, 0, 0, 0, 65];
+    wire.extend([0; 65]);
+    assert_eq!(d.next(&wire), Err(Error::Limit));
+    // Both are advertised, before -308, with -258 still last.
+    let i = |e| ENCODINGS.iter().position(|&x| x == e).unwrap();
+    assert!(i(CONTINUOUS_UPDATES) < i(EXTENDED_DESKTOP_SIZE));
+    assert!(i(FENCE) < i(EXTENDED_DESKTOP_SIZE));
+    assert_eq!(ENCODINGS.last(), Some(&QEMU_EXTENDED_KEY));
 }

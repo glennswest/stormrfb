@@ -13,7 +13,19 @@
 //! application answers with [`Server::accept_resize`] or
 //! [`Server::refuse_resize`]. A request outside [`Limits`] or with an invalid
 //! layout is refused without an event.
+//!
+//! A client that advertises Fence (-312) gets a fence request after its
+//! `SetEncodings`, and its own fence requests answered. One that advertises
+//! ContinuousUpdates (-313) gets EndOfContinuousUpdates, and may then
+//! enable them: [`Server::update`] then sends updates for the enabled area
+//! whenever there is damage, without requests, and ignores incremental
+//! requests (non-incremental ones are still answered). With Fence, each
+//! such update is followed by a fence request, and updates stop while the
+//! bytes not yet answered for reach [`Server::set_window`]'s window, so a
+//! slow link is not flooded. Without Fence the application's own pacing
+//! of `update` is the only limit.
 #![forbid(unsafe_code)]
+use std::collections::VecDeque;
 use stormrfb::*;
 /// Supply a fresh cryptographically random challenge for every VNC-auth session.
 pub enum Security {
@@ -88,7 +100,21 @@ pub struct Server {
     requested: Option<(u16, u16, Vec<Screen>)>,
     /// Status of the latest answer to the client, not yet sent.
     resize_reply: Option<u16>,
+    /// -312 was advertised (and announced with a fence request).
+    fence: bool,
+    /// -313 was advertised (and announced with EndOfContinuousUpdates).
+    continuous_announced: bool,
+    /// The area continuous updates are enabled for.
+    continuous: Option<Rect>,
+    /// Fences sent after continuous updates and not yet answered: their
+    /// sequence number and the bytes of the update before them.
+    in_flight: VecDeque<(u32, usize)>,
+    in_flight_bytes: usize,
+    next_fence: u32,
+    window: usize,
 }
+/// Bytes of continuous updates that may be unanswered by default.
+pub const DEFAULT_WINDOW: usize = 1024 * 1024;
 impl Server {
     pub fn new(init: ServerInit, security: Security, limits: Limits) -> Result<Self> {
         init.encode(limits)?;
@@ -118,7 +144,28 @@ impl Server {
             announce_layout: false,
             requested: None,
             resize_reply: None,
+            fence: false,
+            continuous_announced: false,
+            continuous: None,
+            in_flight: VecDeque::new(),
+            in_flight_bytes: 0,
+            next_fence: 0,
+            window: DEFAULT_WINDOW,
         })
+    }
+    /// The most bytes of continuous updates the client may not yet have
+    /// answered the fences of before the server waits (at least one update
+    /// is always let through). [`DEFAULT_WINDOW`] unless set.
+    pub fn set_window(&mut self, bytes: usize) {
+        self.window = bytes;
+    }
+    /// Whether the client has continuous updates enabled.
+    pub fn continuous(&self) -> bool {
+        self.continuous.is_some()
+    }
+    /// Bytes of continuous updates sent whose fences are not yet answered.
+    pub fn in_flight(&self) -> usize {
+        self.in_flight_bytes
     }
     fn extended_desktop_size(&self) -> bool {
         self.encodings.contains(&EXTENDED_DESKTOP_SIZE)
@@ -167,6 +214,14 @@ impl Server {
             return Err(Error::Invalid("empty framebuffer"));
         }
         self.screens = screens;
+        // Continuous updates carry on over the whole new framebuffer.
+        if self.continuous.is_some() {
+            self.continuous = Some(Rect {
+                width,
+                height,
+                ..Rect::default()
+            });
+        }
         self.pixels = vec![[0, 0, 0, 255]; n];
         self.init.width = width;
         self.init.height = height;
@@ -328,7 +383,66 @@ impl Server {
                             let extended = encodings.contains(&EXTENDED_DESKTOP_SIZE);
                             self.announce_layout =
                                 extended && (self.announce_layout || !self.extended_desktop_size());
+                            if encodings.contains(&FENCE) && !self.fence {
+                                self.fence = true;
+                                out.push(Event::Send(
+                                    ClientMessage::Fence {
+                                        flags: FENCE_REQUEST,
+                                        payload: vec![],
+                                    }
+                                    .encode(self.limits)?,
+                                ));
+                            }
+                            if encodings.contains(&CONTINUOUS_UPDATES)
+                                && !self.continuous_announced
+                            {
+                                self.continuous_announced = true;
+                                out.push(Event::Send(
+                                    ServerEvent::EndOfContinuousUpdates
+                                        .encode_control(self.limits)?,
+                                ));
+                            }
                             self.encodings = encodings;
+                        }
+                        ClientMessage::Fence { flags, payload } => {
+                            if !self.fence {
+                                return Err(Error::Unsupported(FENCE));
+                            }
+                            if flags & FENCE_REQUEST != 0 {
+                                out.push(Event::Send(
+                                    ServerEvent::Fence {
+                                        flags: flags & FENCE_FLAGS,
+                                        payload,
+                                    }
+                                    .encode_control(self.limits)?,
+                                ));
+                            } else if let Ok(seq) = <[u8; 4]>::try_from(payload.as_slice())
+                                && let Some(i) = self
+                                    .in_flight
+                                    .iter()
+                                    .position(|&(s, _)| s == u32::from_be_bytes(seq))
+                            {
+                                for (_, n) in self.in_flight.drain(..=i) {
+                                    self.in_flight_bytes -= n;
+                                }
+                            }
+                        }
+                        ClientMessage::EnableContinuousUpdates { enable, rect } => {
+                            if !self.continuous_announced {
+                                return Err(Error::Unsupported(CONTINUOUS_UPDATES));
+                            }
+                            if enable {
+                                if !rect.within(self.init.width, self.init.height) {
+                                    return Err(Error::Invalid("continuous updates bounds"));
+                                }
+                                self.continuous = Some(rect);
+                            } else {
+                                self.continuous = None;
+                                out.push(Event::Send(
+                                    ServerEvent::EndOfContinuousUpdates
+                                        .encode_control(self.limits)?,
+                                ));
+                            }
                         }
                         ClientMessage::SetDesktopSize {
                             width,
@@ -353,6 +467,10 @@ impl Server {
                                 });
                             }
                         }
+                        // Continuous updates make incremental requests moot.
+                        ClientMessage::UpdateRequest {
+                            incremental: true, ..
+                        } if self.continuous.is_some() => {}
                         ClientMessage::UpdateRequest { incremental, rect } => {
                             // The client still knows the old dimensions until it
                             // receives DesktopSize; accept its triggering request.
@@ -401,14 +519,43 @@ impl Server {
         self.buffer.drain(..pos);
         Ok(out)
     }
-    /// Emit at most one outstanding requested update. Incremental requests wait for damage.
+    /// Emit at most one outstanding requested update. Incremental requests
+    /// wait for damage. With continuous updates enabled, an update for their
+    /// area whenever there is damage and the window allows.
     pub fn update(&mut self) -> Result<Option<Vec<u8>>> {
         if !matches!(self.state, State::Ready) {
             return Ok(None);
         }
-        let Some((incremental, area)) = self.request else {
-            return Ok(None);
+        let (incremental, area) = match (self.request, self.continuous) {
+            (Some(request), _) => request,
+            (None, Some(area)) if self.window_open() => (true, area),
+            _ => return Ok(None),
         };
+        let bytes = self.update_for(incremental, area)?;
+        bytes.map(|b| self.fenced(b)).transpose()
+    }
+    fn window_open(&self) -> bool {
+        !self.fence || self.in_flight.is_empty() || self.in_flight_bytes < self.window
+    }
+    /// With continuous updates and Fence: a fence request after the update,
+    /// whose answer says the client has had it.
+    fn fenced(&mut self, mut bytes: Vec<u8>) -> Result<Vec<u8>> {
+        if self.continuous.is_some() && self.fence {
+            let seq = self.next_fence;
+            self.next_fence = seq.wrapping_add(1);
+            self.in_flight.push_back((seq, bytes.len()));
+            self.in_flight_bytes += bytes.len();
+            bytes.extend(
+                ServerEvent::Fence {
+                    flags: FENCE_REQUEST | FENCE_BLOCK_BEFORE,
+                    payload: seq.to_be_bytes().to_vec(),
+                }
+                .encode_control(self.limits)?,
+            );
+        }
+        Ok(bytes)
+    }
+    fn update_for(&mut self, incremental: bool, area: Rect) -> Result<Option<Vec<u8>>> {
         if self.pending_resize {
             let rect = self.layout().unwrap_or(Rectangle::DesktopSize {
                 width: self.init.width,
