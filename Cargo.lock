@@ -488,6 +488,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "stormrfb-vt"
+version = "0.2.0"
+dependencies = [
+ "libc",
+ "stormrfb",
+ "stormrfb-client",
+ "stormrfb-server",
+]
+
+[[package]]
 name = "stormrfb-wasm"
 version = "0.2.0"
 dependencies = [

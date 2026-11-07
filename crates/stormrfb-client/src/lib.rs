@@ -191,6 +191,8 @@ pub struct Client {
     desktop_resize: bool,
     screens: Vec<Screen>,
     resize_status: Option<u16>,
+    paused: bool,
+    updates: u64,
 }
 impl Client {
     pub fn new(password: Option<Vec<u8>>, limits: Limits) -> Self {
@@ -206,6 +208,8 @@ impl Client {
             desktop_resize: false,
             screens: Vec::new(),
             resize_status: None,
+            paused: false,
+            updates: 0,
         }
     }
     pub fn framebuffer(&self) -> Option<&Framebuffer> {
@@ -234,6 +238,35 @@ impl Client {
     /// [`Event::Resized`].
     pub fn resize_status(&self) -> Option<u16> {
         self.resize_status
+    }
+    /// Stop asking for updates: the update in flight still arrives, and no
+    /// request follows it, so the server sends nothing more. For a viewer
+    /// that is not on screen (a console's VT switched away).
+    pub fn pause(&mut self) {
+        self.paused = true;
+    }
+    /// Whether [`Client::pause`] is in effect.
+    pub fn paused(&self) -> bool {
+        self.paused
+    }
+    /// Ask for updates again, starting with the whole framebuffer
+    /// (non-incremental), so nothing drawn while paused is missed. Returns
+    /// the request to send.
+    pub fn resume(&mut self) -> Result<Vec<u8>> {
+        if self.failed || self.handshake.is_some() {
+            return Err(Error::Invalid("client not ready"));
+        }
+        self.paused = false;
+        self.resized = false;
+        ClientMessage::UpdateRequest {
+            incremental: false,
+            rect: self.framebuffer.as_ref().unwrap().rect(),
+        }
+        .encode(self.limits)
+    }
+    /// FramebufferUpdates completed so far.
+    pub fn updates(&self) -> u64 {
+        self.updates
     }
     /// SetDesktopSize: ask the server for a `width` x `height` framebuffer,
     /// as one screen that keeps the id and flags of the current first
@@ -386,14 +419,17 @@ impl Client {
                                 events.push(e);
                             }
                             ServerEvent::UpdateEnd => {
-                                events.push(Event::Send(
-                                    ClientMessage::UpdateRequest {
-                                        incremental: !self.resized,
-                                        rect: self.framebuffer.as_ref().unwrap().rect(),
-                                    }
-                                    .encode(self.limits)?,
-                                ));
-                                self.resized = false;
+                                self.updates += 1;
+                                if !self.paused {
+                                    events.push(Event::Send(
+                                        ClientMessage::UpdateRequest {
+                                            incremental: !self.resized,
+                                            rect: self.framebuffer.as_ref().unwrap().rect(),
+                                        }
+                                        .encode(self.limits)?,
+                                    ));
+                                    self.resized = false;
+                                }
                             }
                             ServerEvent::Bell => events.push(Event::Bell),
                             ServerEvent::CutText(t) => events.push(Event::CutText(t)),

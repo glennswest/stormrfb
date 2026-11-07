@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/stormrfb", "crates/stormrfb-client", "crates/stormrfb-server", "crates/stormrfb-wasm"]
+members = ["crates/stormrfb", "crates/stormrfb-client", "crates/stormrfb-server", "crates/stormrfb-wasm", "crates/stormrfb-vt"]
 resolver = "2"
 
 [workspace.package]

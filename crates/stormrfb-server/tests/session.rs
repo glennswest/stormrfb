@@ -488,3 +488,51 @@ fn set_desktop_size_without_negotiation_ends_the_session() {
         Err(Error::Unsupported(EXTENDED_DESKTOP_SIZE))
     );
 }
+#[test]
+fn paused_client_asks_for_nothing_and_resumes_with_a_full_frame() {
+    let (mut c, mut s) = ready();
+    let before = c.updates();
+    c.pause();
+    assert!(c.paused());
+    // The update in flight still arrives, and no request follows it.
+    s.damage(
+        Rect {
+            x: 1,
+            y: 1,
+            width: 1,
+            height: 1,
+        },
+        &[[1, 2, 3, 255]],
+    )
+    .unwrap();
+    let b = s.update().unwrap().unwrap();
+    let events = c.receive(&b).unwrap();
+    assert!(!events.iter().any(|e| matches!(e, C::Send(_))));
+    assert_eq!(c.updates(), before + 1);
+    // Damage while paused is not sent: there is no request.
+    s.damage(
+        Rect {
+            x: 3,
+            y: 2,
+            width: 1,
+            height: 1,
+        },
+        &[[4, 5, 6, 255]],
+    )
+    .unwrap();
+    assert!(s.update().unwrap().is_none());
+    // Resuming asks for the whole framebuffer, which carries it.
+    let b = c.resume().unwrap();
+    assert!(!c.paused());
+    s.receive(&b).unwrap();
+    let b = s.update().unwrap().unwrap();
+    let events = c.receive(&b).unwrap();
+    assert!(events.contains(&C::Damage(Rect {
+        width: 4,
+        height: 3,
+        ..Rect::default()
+    })));
+    assert_eq!(&c.framebuffer().unwrap().rgba()[44..48], &[4, 5, 6, 255]);
+    assert!(events.iter().any(|e| matches!(e, C::Send(_))));
+    assert_eq!(c.updates(), before + 2);
+}
