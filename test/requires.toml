@@ -1,0 +1,10 @@
+# What stormrfb-test needs beyond the runner's namespace-only Role
+# (stormcentral docs/test-standard.md): nothing. stormrfb is a library with
+# nothing of its own on a node, so every suite runs the commit's own server
+# and client against each other over the pod's loopback TCP. No hardware,
+# no host paths, no API access, no network beyond the pod.
+[short]
+
+[medium]
+
+[long]
