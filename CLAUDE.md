@@ -57,6 +57,11 @@ and pvetest2 at 5e64282 (2026-11-07, #10); the nightly plan runs `medium`.
 
 ## Work plan
 
+### Status (2026-11-07)
+
+v0.3.0: #5, #6, #7, #10, #11, #12 done; #25 (stormrfb-vt) built, waiting on its
+registry entry. Open: #16 (P3), #22 (P3), #24 (P1, licence), #25.
+
 ### Status (2026-10-06)
 
 v0.2.0: #1 done (QEMU Extended Key Event, checked against a real qemu).
@@ -398,7 +403,8 @@ Deferred by decision 3; only the development harness is implemented.
 
 ### Phase 4 — latency
 
-- [ ] `ContinuousUpdates` + `Fence`, and whatever phase 1 measured as slow
+- [x] `ContinuousUpdates` + `Fence` (#7, v0.3.0; 4.0x updates/s at 50 ms RTT, docs/VALIDATION.md)
+- [ ] whatever else phase 1 measured as slow (#22: browser p95 about 2x noVNC on a text console)
 
 ## Integration, when phase 1 lands
 
