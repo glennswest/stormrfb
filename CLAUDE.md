@@ -212,17 +212,15 @@ as the measurement.
   drain for the bootstrap golden; it is still draining (stormcentral#541).
   Proposed --after stormcentral#541; rerun that one command when it ends
 
-### Active — #11 slide overflow (2026-10-06)
+### Active — #11 slide overflow (2026-10-06; resumed 2026-11-07)
 
 Part 2 (stale clippy/rustfmt line) was done in 13581c5.
-- [x] `tools/check-slides.sh` + `tools/slides.browser.cjs`: Marp → HTML,
-      Playwright Chromium measures each `section` (scroll vs client box) and
-      prints each slide as a base64 PNG line, so it can be looked at
-- [ ] first run (3931eb3) failed in silent npm setup after 12 min; bc15d04
-      makes each step print why; not run yet — dev down (stormcentral#517),
-      then d3c55bc's run cancelled waiting for a slot (stormcentral#536).
-      The deck changed for #6 (06a29dc); the run covers it
-- [ ] split or trim any slide that overflows; rerun until none does
+- [ ] replace the homegrown `tools/check-slides.sh` + `tools/slides.browser.cjs`
+      (never completed a run) with stormcentral's standard checker (#77),
+      copied as `deploy/check-slides.sh` + `deploy/slide-fit.mjs`
+- [ ] `sc-build deploy/check-slides.sh`; split or trim any slide that
+      overflows; rerun until all fit
+- [ ] CHANGELOG, README; close #11
 
 ### Done — #1 QEMU Extended Key Event (-258), v0.2.0 (2026-10-06)
 
