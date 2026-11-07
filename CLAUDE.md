@@ -79,19 +79,21 @@ overflow, #12 test-crate lint.
 stormcos#228: desktops on tty5/tty6. A new binary crate `crates/stormrfb-vt`
 (an RFB client that draws to KMS), with its DRM/VT code adapted from
 stormpanel (`drm.rs`, `vt.rs`, its Terminus font).
-- [ ] client: `pause()` / `resume()` (no update requests while the VT is
+- [x] client: `pause()` / `resume()` (no update requests while the VT is
       away; a full one back) and `updates()`; non-breaking additions
-- [ ] `stormrfb-vt` lib: `Viewer` (sans-I/O: bytes and evdev events in,
+- [x] `stormrfb-vt` lib: `Viewer` (sans-I/O: bytes and evdev events in,
       bytes and VT switches out; scaled XRGB canvas; a frame is shown only
       once every pixel is fresh), `keys` (evdev → XT scancode + US keysym),
       `Fit` (aspect-kept scale, display ↔ guest coordinates)
-- [ ] binary: VT_PROCESS + KD_GRAPHICS + K_OFF (Alt+Fn / Ctrl+Alt+Fn handled
+- [x] binary: VT_PROCESS + KD_GRAPHICS + K_OFF (Alt+Fn / Ctrl+Alt+Fn handled
       here with VT_ACTIVATE), DRM dumb buffers, evdev keyboards/pointers
       (abs + rel), vnc.sock / `--connect`, reconnect with backoff, status
       screen while the VM is down, cursor (-239) drawn locally
-- [ ] tests against `stormrfb-server`: known frame, keystroke, click,
+- [x] tests against `stormrfb-server`: known frame, keystroke, click,
       release/acquire with no stale frame
+- [x] code + docs pushed (5c0d00b, 742f764); written with no toolchain here
 - [ ] sc-build: fmt, clippy -D warnings, workspace tests, musl release build
+      (first run of 5c0d00b queued 2026-11-07, ~10 builds ahead)
 - [ ] golden: needs a registry entry (`component add stormrfb-vt`, master
       runs it via `stormcentral note`); licence #24 may block the SBOM gate
 - [ ] stormcos wiring on tty5/tty6 is stormcos#228's; absolute pointer on
