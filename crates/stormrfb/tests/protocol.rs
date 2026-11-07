@@ -291,7 +291,9 @@ fn fence_and_continuous_updates_wire_layout_and_bounds() {
     assert!(ClientMessage::decode(&[150, 2, 0, 0, 0, 0, 0, 0, 0, 0], l).is_err());
     // Server side: EndOfContinuousUpdates is one byte; a Fence as the
     // client's, both through the decoder in pieces.
-    let end = ServerEvent::EndOfContinuousUpdates.encode_control(l).unwrap();
+    let end = ServerEvent::EndOfContinuousUpdates
+        .encode_control(l)
+        .unwrap();
     assert_eq!(end, [150]);
     let fence = ServerEvent::Fence {
         flags: FENCE_REQUEST,

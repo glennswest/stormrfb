@@ -393,8 +393,7 @@ impl Server {
                                     .encode(self.limits)?,
                                 ));
                             }
-                            if encodings.contains(&CONTINUOUS_UPDATES)
-                                && !self.continuous_announced
+                            if encodings.contains(&CONTINUOUS_UPDATES) && !self.continuous_announced
                             {
                                 self.continuous_announced = true;
                                 out.push(Event::Send(

@@ -1,6 +1,6 @@
 use stormrfb::*;
 use stormrfb_client::{Client, Event as C};
-use stormrfb_server::{Event as S, Security, Server};
+use stormrfb_server::{DEFAULT_WINDOW, Event as S, Security, Server};
 fn exchange(c: &mut Client, s: &mut Server, initial: Vec<u8>) {
     let mut queue = std::collections::VecDeque::from([initial]);
     for _ in 0..100 {

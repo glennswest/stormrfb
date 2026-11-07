@@ -185,11 +185,17 @@ pub enum ClientMessage {
     /// Fence (message 248): a request (with [`FENCE_REQUEST`]) or the
     /// answer to the server's. At most [`FENCE_MAX_PAYLOAD`] bytes of
     /// payload. Send only after the server sent a fence.
-    Fence { flags: u32, payload: Vec<u8> },
+    Fence {
+        flags: u32,
+        payload: Vec<u8>,
+    },
     /// EnableContinuousUpdates (message 150): start (`enable`) or stop
     /// updates for `rect` without requests. Send only after the server sent
     /// EndOfContinuousUpdates; a stop is answered with another.
-    EnableContinuousUpdates { enable: bool, rect: Rect },
+    EnableContinuousUpdates {
+        enable: bool,
+        rect: Rect,
+    },
 }
 /// Fence flags, a length byte and the payload (after the type and padding).
 pub(crate) fn put_fence(out: &mut Vec<u8>, flags: u32, payload: &[u8]) -> Result<()> {

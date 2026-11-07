@@ -817,7 +817,12 @@ fn latency_50ms() -> Outcome {
             if continuous {
                 session::client(s, None, Limits::default(), &[], None)
             } else {
-                session::codec_client(s, PixelFormat::RGBX, request_mode.clone(), Limits::default())
+                session::codec_client(
+                    s,
+                    PixelFormat::RGBX,
+                    request_mode.clone(),
+                    Limits::default(),
+                )
             }
         }) {
             Ok(run) => run,

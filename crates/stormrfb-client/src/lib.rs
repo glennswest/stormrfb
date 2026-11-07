@@ -235,7 +235,9 @@ impl Client {
         self.continuous
     }
     fn whole(&self) -> Rect {
-        self.framebuffer.as_ref().map_or(Rect::default(), |f| f.rect())
+        self.framebuffer
+            .as_ref()
+            .map_or(Rect::default(), |f| f.rect())
     }
     /// EnableContinuousUpdates for the whole framebuffer, when the server
     /// takes it and it is not on, paused or refused.

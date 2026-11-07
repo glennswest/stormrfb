@@ -46,9 +46,15 @@ pub enum ServerEvent {
     UpdateEnd,
     Bell,
     CutText(Vec<u8>),
-    ColourMap { first: u16, colors: Vec<[u16; 3]> },
+    ColourMap {
+        first: u16,
+        colors: Vec<[u16; 3]>,
+    },
     /// Fence (248): a request (with `FENCE_REQUEST`) or the answer to one.
-    Fence { flags: u32, payload: Vec<u8> },
+    Fence {
+        flags: u32,
+        payload: Vec<u8>,
+    },
     /// EndOfContinuousUpdates (150): the server supports
     /// `CONTINUOUS_UPDATES`, or has stopped sending them.
     EndOfContinuousUpdates,
