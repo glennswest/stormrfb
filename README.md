@@ -8,9 +8,10 @@ session that turns a framebuffer and damage into updates, and a WASM/canvas
 binding for the browser. Private, version **0.2.0**, nothing published.
 
 It is a set of crates, not a service: **no daemon, no ports, no config
-file, no health or metrics endpoints.** The one runnable thing it ships is
+file, no health or metrics endpoints.** The runnable things it ships are
 a test image ([`test/`](test/README.md)), which only talks to itself over
-the pod's loopback. The application that links it owns
+the pod's loopback, and `stormrfb-vt`, a console viewer that shows a VM
+full-screen on a node's VT ([below](#console-viewer-stormrfb-vt)). The application that links it owns
 the transport, authorization, logging and metrics.
 
 ## Why it exists
@@ -35,6 +36,7 @@ the transport, authorization, logging and metrics.
 | `stormrfb` | Sans-I/O codec: handshake, messages, pixel formats, rectangle encode/decode. `#![forbid(unsafe_code)]` | `des`, `flate2` (pure-Rust backend) |
 | `stormrfb-client` | `Client` (bytes in → events out) + `Framebuffer` (canonical RGBA) + DOM key/button helpers | `stormrfb`; `minifb` only with feature `native-harness` |
 | `stormrfb-server` | `Server`: one session per connection. It handles authentication, input events, damage and requested updates | `stormrfb` |
+| `stormrfb-vt` | Binary + lib: a VM's display full-screen on a Linux VT (KMS dumb buffers, evdev input, VT_PROCESS). The only crate with `unsafe` (ioctls) | `stormrfb-client`, `libc` |
 | `stormrfb-wasm` | `BrowserClient`, the wasm-bindgen wrapper around `Client` | `stormrfb-client`, `wasm-bindgen`, `js-sys` |
 | `web/` | `@stormrfb/client`: `connect(canvas, url, opts)`, canvas 2D, `private: true` | the built `web/pkg/` |
 | `fuzz/` | `cargo-fuzz` target `decoder` (separate workspace) | `libfuzzer-sys` |
@@ -109,6 +111,11 @@ that decoder, client or session: reconnect with a fresh one.
   `RESIZE_OK` (0), `RESIZE_PROHIBITED` (1), `RESIZE_OUT_OF_RESOURCES` (2)
   or `RESIZE_INVALID_LAYOUT` (3). A layout rectangle with an unchanged size
   does not resize or clear the framebuffer. The `Event` enum is unchanged.
+- **Pausing** (for a viewer that is not on screen). `pause()` stops the
+  request that follows each update, so after the one in flight the server
+  sends nothing. `resume()` returns a non-incremental request for the whole
+  framebuffer, so nothing drawn meanwhile is missed. `updates()` counts
+  completed FramebufferUpdates. The `Event` enum is unchanged.
 - `Framebuffer` is opaque RGBA (alpha forced to 255; the wire's spare byte is
   not alpha). CopyRect handles overlap in every direction.
 - `Renderer` is a trait for native consumers. Nothing in this repo
@@ -175,6 +182,59 @@ on blur), pointer with capture, and wheel. Clipboard text is Latin-1 only.
 It has no dead keys, no IME and no scaling of its own, and does not resize
 by itself: the page decides when to call `resize`. The canvas is the guest's size and CSS scales it. See
 [web/README.md](web/README.md).
+
+### Console viewer (`stormrfb-vt`)
+
+A VM's display full-screen on the VT it runs on (#25, stormcos#228: a
+desktop on tty5, another on tty6). It is an RFB client, as the browser's
+is, that draws to KMS instead of a canvas.
+
+```
+stormrfb-vt --vm default/desk        # /run/stormvm/default/desk/vnc.sock
+stormrfb-vt --socket PATH            # any RFB server on a Unix socket
+stormrfb-vt --connect HOST:PORT      # or on TCP
+  [--run-dir /run/stormvm] [--password-file FILE] [--device /dev/dri/cardN]
+  [--switch alt|ctrl-alt] [--no-resize]
+```
+
+- **Runs on a VT**: fd 0 is the VT (stormpump's `tty tty5`). It sets the VT
+  to graphics mode, `VT_PROCESS` switching and keyboard mode `K_OFF`, and
+  puts them back on exit. Logs go to `/dev/kmsg`.
+- **Display**: the first `/dev/dri/card*` with a connected screen (or
+  `--device`), its preferred mode, two XRGB8888 dumb buffers, page flips
+  (copy + DIRTYFB on simpledrm). The guest is scaled to fit, nearest
+  neighbour, aspect kept, black bars. Where the server takes
+  ExtendedDesktopSize it asks once per session for the screen's size
+  (`--no-resize` to not). The guest's cursor (the Cursor pseudo-encoding)
+  is drawn at the pointer.
+- **Input**: every `/dev/input/event*` that is a keyboard (letter keys) or
+  a pointer (a button and an X axis); rescanned every 2 s. Keys go as QEMU
+  extended key events (XT scancodes: the guest's own layout applies) where
+  the server acknowledges -258, otherwise as US-layout keysyms. Absolute
+  pointers (a KVM, a tablet) map across the whole screen, relative mice
+  move within the picture; wheels are buttons 4–7. The guest needs an
+  absolute pointer device for the position to match (stormvm#76 for qemu).
+- **Switching VTs**: the kernel no longer sees this VT's keys (`K_OFF`), so
+  the viewer switches itself: **Alt+Fn and Ctrl+Alt+Fn** (as on the text
+  consoles; the guest never sees Alt+Fn), or with `--switch ctrl-alt` only
+  Ctrl+Alt+Fn, so Alt+F4 reaches the guest. Ctrl+Alt+Del goes to the
+  guest, not the node.
+- **Release** (switched away): every key and button the guest thinks is
+  held is let go of, the input devices are closed, DRM master is dropped,
+  and the client is paused. **Acquire**: master and the devices are taken
+  back, and a whole frame is asked for. Nothing is shown until every
+  pixel of it has arrived, so a switch back never shows the frame from
+  before it (the status screen shows for that moment instead).
+- **VM down**: a status screen names the VM and why, and it reconnects
+  with backoff (1 s doubling to 30 s, back to 1 s after a session that
+  reached the handshake).
+- **Tests** (`crates/stormrfb-vt/tests/viewer.rs`): the `Viewer` (all of it
+  but the kernel interfaces) against `stormrfb-server` in process: a known
+  frame on a 2x screen pixel for pixel, keystrokes (scancode + keysym,
+  shifted, E0) and a click (absolute, relative, wheel) at the guest
+  position, release/acquire with no stale frame and no stuck keys, the
+  switch keys in both modes, and a resize to the screen's size. The DRM,
+  VT and evdev parts need a real console and are not run by the build.
 
 ### Native harness (development only)
 
@@ -260,9 +320,8 @@ and ignored, because the suites create nothing and use no API.
 
 ## How it ships
 
-stormrfb has **no golden and no stormcos component of its own**. It is not
-in stormcos `deploy/build-goldens.sh` `COMPONENTS`. It reaches a release
-through its consumers:
+The libraries have **no golden of their own**. They reach a release
+through their consumers:
 
 - **stormconsole** vendors the built browser package into
   `web/src/lib/vendor/stormrfb/`, with the source commit in `VERSION`
@@ -271,8 +330,14 @@ through its consumers:
 - **stormrdp** depends on `stormrfb`, `stormrfb-client` and
   `stormrfb-server` as git dependencies pinned by `rev`.
 
-Changing this repo changes nothing deployed until one of those updates its
-pin.
+Changing the libraries changes nothing deployed until one of those updates
+its pin.
+
+**`stormrfb-vt`** is meant to ship as a binaries golden of its own
+(`/pallets/stormrfb-vt`, static musl), supervised by stormpump as a
+`domain task` with `tty tty5`/`tty tty6` like stormpanel on tty8. Its
+registry entry is the owner's to add (stormcentral#185), and stormcos#228
+wires it on the VTs.
 
 **The test image** is built by stormcentral's test runner from `test/`
 (`test/build.sh`, then `podman build -f test/Containerfile .`) as

@@ -171,7 +171,7 @@ WASM + JS package: 106,798 bytes, 44,718 gzipped (docs/PERFORMANCE.md).
 | **Config** | `stormrfb::Limits` only. The WASM binding uses `Limits::default()`. The test image reads `STORM_TIMEOUT` and optionally `STORMRFB_TARGET` |
 | **Ports** | none. The dev demo uses 127.0.0.1:8765 (`PORT`), and the test image uses ephemeral loopback ports inside its pod |
 | **Health / metrics** | none. That is the linking application's job |
-| **CLI** | none shipped. A dev-only native harness: `cargo run -p stormrfb-client --example viewer --features native-harness -- HOST:PORT` |
+| **CLI** | `stormrfb-vt --vm NS/NAME` (a VM on a VT, #25). A dev-only native harness: `cargo run -p stormrfb-client --example viewer --features native-harness -- HOST:PORT` |
 
 All crates are `publish = false`, edition 2024, rust-version 1.85.
 
@@ -179,8 +179,9 @@ All crates are `publish = false`, edition 2024, rust-version 1.85.
 
 ## How it ships and is operated
 
-- **No golden, no stormcos component, no daemon.** Nothing starts it.
-  It runs inside whatever links it.
+- **The libraries: no golden, no daemon.** They run inside whatever
+  links them. `stormrfb-vt` (#25) is a binary for a node's VT, to ship as
+  its own golden under stormpump (stormcos#228).
 - **Build and test:** `git push`, then `sc-build 'cargo test --workspace --locked'`
   on dev.g8.lo as the unprivileged build user.
 - **To stormconsole:** rebuild the web package with `tools/build-web.sh`,

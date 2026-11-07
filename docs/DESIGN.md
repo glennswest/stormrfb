@@ -152,6 +152,12 @@ stormrfb-wasm       the browser binding. wasm-bindgen, canvas ImageData (or
 stormrfb-view       (design — not built, deferred by decision 3): a native
                     viewer. Only the feature-gated development harness
                     (stormrfb-client example `viewer`) exists.
+
+stormrfb-vt         (built, #25): a VM full-screen on a node's own VT for
+                    stormcos#228's desktops. KMS dumb buffers, evdev,
+                    VT_PROCESS; the only crate with `unsafe`, all of it
+                    ioctls. Its `Viewer` is sans-I/O like the rest, so it is
+                    tested against stormrfb-server with no console.
 ```
 
 Three properties this buys:
@@ -325,6 +331,14 @@ it: `stormvm vnc <vm>` bridges the hypervisor's unix VNC socket to
 `127.0.0.1:5900` by default. It does not launch `$VNCVIEWER`; that part
 was never built.) If the harness turns out to be pleasant, promoting
 it later is easy; if it does not, nothing was promised.
+
+**Not the same thing: `stormrfb-vt`** (#25, 2026-11-07). The owner's
+stormcos#228 puts desktops on a node's own console (tty5, tty6). That is
+not a GUI application on an operator's machine: one screen, one fixed
+mode, no window system, no clipboard or IME, keys straight from evdev.
+None of the long tail above applies, and a browser tab cannot be on a
+node's VGA console, so decision 3 stands for `stormrfb-view` and does not
+cover it.
 
 ### 4. TRLE is an internal module, not an advertised encoding
 
