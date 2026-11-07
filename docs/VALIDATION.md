@@ -285,6 +285,32 @@ is `stormrfb-client` over a `UnixStream`.
   console, so the shell got `/dev/ttys0`. The scancode path has no such
   loss. A non-US guest layout was not tried.
 
+## ContinuousUpdates and Fence over a 50 ms round trip — 2026-11-07 (#7)
+
+Measured on a build VM (8 CPUs, `sc-build`, f4e50ae), `test/` medium's
+`latency-50ms`: the commit's server paints a 1280x720 screen with a
+320x240 window moving, one frame every 10 ms (100 frames), and the client
+reads it through a loopback proxy that holds every chunk 25 ms each way.
+
+| Mode | Client | Updates/s | 100 frames in |
+|---|---|---|---|
+| request/response | codec client, no -313/-312 advertised | 18.3 | 5.46 s |
+| continuous updates + fence | `stormrfb_client::Client` | 73.5 | 1.36 s |
+
+Both ended pixel-exact. Request/response is held to one update per round
+trip (at most 20/s at 50 ms); continuous updates are 4.0x faster here and
+bound by the scene's 100/s painting and the proxy, not by the round trip.
+The suite gates continuous at no less than twice request/response.
+
+In the same run, with continuous updates now on in `Client` against
+`stormrfb-server`, `moving-window-1080p` was 300 frames exact at 189 fps,
+11.7 MB/s, 61,801 bytes/frame (61,788 on 2026-10-07 in request mode: each
+update now also carries a 13-byte fence).
+
+Not measured: a real WAN link, and a third-party server's continuous
+updates (TigerVNC implements both; qemu implements neither, so qemu
+sessions stay request/response).
+
 ## Remaining phase exits and limits
 
 - The real-guest part of the phase 1 exit passed on 2026-10-06 (above): a

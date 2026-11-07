@@ -135,21 +135,27 @@ Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
 Owner's decision on #7 (2026-10-07): build it now, codec + client +
 server, verified in-process and with test/, plus a 50 ms injected-RTT case
 as the measurement.
-- [ ] codec: `CONTINUOUS_UPDATES`, `FENCE`, `FENCE_*` flags; client
+- [x] codec: `CONTINUOUS_UPDATES`, `FENCE`, `FENCE_*` flags; client
       `Fence` (248) and `EnableContinuousUpdates` (150); server `Fence`
       (248) and `EndOfContinuousUpdates` (150); in `ENCODINGS` before -308
       (-258 stays last)
-- [ ] client: answers fence requests; enables CU once the server has shown
+- [x] client: answers fence requests; enables CU once the server has shown
       both (EndOfContinuousUpdates + a Fence); no update requests while on;
       re-enables for a new size; `pause()` now returns bytes (disable),
       `resume()` re-enables + full request (stormrfb-vt follows)
-- [ ] server: announces both after SetEncodings; pushes updates for the CU
+- [x] server: announces both after SetEncodings; pushes updates for the CU
       area without requests, each followed by a fence request; in-flight
       bytes bounded by a window (`set_window`, default 1 MiB); answers
       client fences; disable → EndOfContinuousUpdates
-- [ ] tests: codec round trips/bounds; sessions; test/ medium suite with a
+- [x] tests: codec round trips/bounds; sessions; test/ medium suite with a
       50 ms injected RTT: updates/s request/response vs continuous
-- [ ] sc-build; docs; CHANGELOG; close #7
+- [x] sc-build at f4e50ae (2026-11-07): fmt + clippy -D warnings
+      (workspace and test crate), 68 workspace tests, test/ medium 16 pass
+      + real-server skip; latency-50ms request/response 18.3 updates/s vs
+      continuous 73.5 (4.0x), exact (docs/VALIDATION.md). Earlier runs:
+      59fb794 missing import; b538400 -258 in the request client (a test bug)
+- [x] docs; CHANGELOG; close #7
+- [ ] v0.3.0 (breaking: #6, #25's pause, #7)
 
 ### Active — #6 ExtendedDesktopSize (-308) + SetDesktopSize (2026-10-07)
 
