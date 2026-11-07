@@ -41,8 +41,8 @@ f6f316d, #12).
 package (`web/src/lib/vendor/stormrfb/VERSION`), and stormrdp pins the
 crates by git rev. Consumers pick up a change only by bumping their pin.
 The stormcos test image (`test/`, `/test short|medium|long`) is built and
-run by stormcentral's test runner, and has not completed a run there yet
-(#10: stormcentral#63; #56 was fixed 2026-09-28).
+run by stormcentral's test runner: `short` and `medium` passed on pvetest1
+and pvetest2 at 5e64282 (2026-11-07, #10); the nightly plan runs `medium`.
 
 ## Conventions
 
@@ -134,9 +134,12 @@ Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
 
 stormcentral#63 (apiserver /readyz) and #57 (/results, requires:) closed
 2026-10-17, so the runner should work.
-- [ ] check test/ against the current test standard (requires.toml, Job yaml)
-- [ ] `stormcentral test run stormrfb short`, then medium; read the log
-- [ ] docs (README, test/README, VALIDATION, CLAUDE.md shipping line); close #10
+- [x] test/requires.toml (no needs), 5e64282
+- [x] short: 09581cba55 pvetest1, 47028e926d pvetest2, 5/5 each
+- [x] medium: e7d49ec2ce pvetest1, 0a5eec6e60 pvetest2, 15 pass + real-server
+      skip each; latency-50ms 4.1x / 4.2x; /results kept by the runner
+- [x] docs (README, test/README, deck, VALIDATION, this file); close #10
+- long not run through the runner (the night window; nightly plans medium)
 
 ### Active — #7 ContinuousUpdates (-313) + Fence (-312) (2026-11-07)
 

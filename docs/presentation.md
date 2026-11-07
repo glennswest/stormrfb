@@ -191,8 +191,8 @@ All crates are `publish = false`, edition 2024, rust-version 1.85.
 - **Updating** means a consumer bumps its pin. Changing this repo changes
   nothing deployed until then.
 - **Test image:** stormcentral's runner builds `test/` into
-  `test-stormrfb-<suite>:<commit12>` and runs it as a Job. It has not yet
-  completed a run there (stormcentral#63), so #10 tracks re-running it.
+  `test-stormrfb-<suite>:<commit12>` and runs it as a Job: `short` and
+  `medium` passed on pvetest1 and pvetest2 (2026-11-07, #10).
 - Not available through `sc-build` today: the `wasm32` target,
   `wasm-bindgen`, nightly and cargo-fuzz, and the Playwright/noVNC checks
   (stormcentral#64). Those last ran on 2026-09-09 (docs/VALIDATION.md).
@@ -227,8 +227,6 @@ secured a layer up), and a shipped native viewer (DESIGN.md decision 3).
 - **Open issues that matter:**
   - stormconsole#99 switches the default and drops noVNC
   - #16 sends scancodes from the browser too
-  - #10 re-runs the test image through stormcentral's runner once
-    stormcentral#63 is fixed
   - stormcentral#64 installs the WASM and fuzz tools on the build box,
     without which the browser package can't be rebuilt
   - stormcentral#54 adds the missing stormrdp → stormrfb graph edge

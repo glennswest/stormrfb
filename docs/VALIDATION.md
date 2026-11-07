@@ -311,6 +311,30 @@ Not measured: a real WAN link, and a third-party server's continuous
 updates (TigerVNC implements both; qemu implements neither, so qemu
 sessions stay request/response).
 
+## The test image through stormcentral's runner — 2026-11-07 (#10)
+
+`stormcentral test run stormrfb short|medium` at 5e64282: the runner built
+`test-stormrfb-<suite>:5e6428224965` on a build VM, pushed it to forge and
+ran it as a Job on both pve test machines (release 12.74.2, 4 CPUs each).
+
+| Suite | pvetest1 | pvetest2 |
+|---|---|---|
+| short | 09581cba55: 5 pass | 47028e926d: 5 pass |
+| medium | e7d49ec2ce: 15 pass, 1 skip | 0a5eec6e60: 15 pass, 1 skip |
+
+The skip is `real-server` (no `STORMRFB_TARGET`). Medium's measured lines:
+
+| Test | pvetest1 | pvetest2 |
+|---|---|---|
+| concurrent-sessions | 8 at once, 1280x720, exact, median 16.5 ms/frame | 8 at once, exact, 16.6 ms/frame |
+| moving-window-1080p | 300 frames exact, 69 fps, 4.2 MB/s, 61,801 B/frame | 66 fps, 4.1 MB/s, 61,801 B/frame |
+| latency-50ms | request/response 17.8, continuous 72.8 updates/s (4.1x) | 17.7 vs 74.2 (4.2x) |
+
+The runner kept `/results` (`results.jsonl`). `long` has not run through
+the runner: it is the night window's suite, and the nightly plan runs
+`medium`. server6–8 were skipped by the runner (no install, a failed
+install, an older release).
+
 ## Remaining phase exits and limits
 
 - The real-guest part of the phase 1 exit passed on 2026-10-06 (above): a

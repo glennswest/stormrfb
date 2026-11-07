@@ -3,6 +3,10 @@
 ## [Unreleased]
 <!-- New unreleased changes go here -->
 
+### 2026-11-07
+- **test:** `test/requires.toml`, declaring that no suite needs anything, per the test standard (#10)
+- **docs:** the test image runs through stormcentral's runner: `short` and `medium` passed on pvetest1 and pvetest2 at 5e64282, `/results` kept (README, test/README, deck, VALIDATION, CLAUDE.md) (#10)
+
 ## [v0.3.0] — 2026-11-07
 
 ### Added

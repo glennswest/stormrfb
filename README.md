@@ -375,13 +375,13 @@ wires it on the VTs.
 **The test image** is built by stormcentral's test runner from `test/`
 (`test/build.sh`, then `podman build -f test/Containerfile .`) as
 `test-stormrfb-<suite>:<commit12>` in the test machine's sbregistry, and run
-as a Job (`test/stormrfb-test.yaml`). It has not yet completed a run through
-the runner, because the test machine's apiserver does not come up
-(stormcentral#63). Once it runs, the runner does not yet collect `/results`
-(stormcentral#57), so `long`'s per-wave `waves.jsonl` stays in the pod;
-the JSON lines on stdout are what it reports. The same image passes under
-`sc-build` and rootless podman (docs/VALIDATION.md). #10 tracks re-running
-it.
+as a Job (`test/stormrfb-test.yaml`; `test/requires.toml` declares that no
+suite needs anything). Since 2026-11-07 it runs there (#10): `short` and
+`medium` passed on pvetest1 and pvetest2 at 5e64282, and the runner keeps
+`/results`. `stormcentral test run stormrfb <suite>` runs it on every test
+machine on its flavor's newest passed release, and the nightly plan runs
+`medium`. `long` has not run through the runner yet. Results:
+docs/VALIDATION.md.
 
 ## Who uses it
 
