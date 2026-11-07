@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # check-slides.sh [DECK.md …] — render a Marp presentation and check every
-#
-# Copied unchanged from glennswest/stormcentral deploy/ at 3d35080 (#77),
-# as stormcentral asks every component to (stormrfb#11).
 # slide fits its 16:9 frame (#77). Default deck: docs/presentation.md.
+#
+# Copied from glennswest/stormcentral deploy/ at 3d35080 (#77), as it asks
+# every component to; only this note is added (stormrfb#11).
 #
 #   sc-build deploy/check-slides.sh
 #   sc-build 'deploy/check-slides.sh docs/presentation.md'
