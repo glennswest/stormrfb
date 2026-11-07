@@ -130,13 +130,26 @@ Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
       stormcentral#63 blocks the runner (#56 closed 2026-09-28); dated
       done-items above keep #56 as history. #10's title and body updated
 
-### Waiting on owner — #7 ContinuousUpdates + Fence (2026-10-07)
+### Active — #7 ContinuousUpdates (-313) + Fence (-312) (2026-11-07)
 
-The issue makes the work conditional on phase 1 showing latency as the
-bottleneck. #4 measured bytes and decode+paint ms/frame on a LAN, not
-request/response latency, so the condition is unanswered. Asked on #7
-(`needs-owner`): build now / measure with an injected RTT first / defer.
-Nothing built yet.
+Owner's decision on #7 (2026-10-07): build it now, codec + client +
+server, verified in-process and with test/, plus a 50 ms injected-RTT case
+as the measurement.
+- [ ] codec: `CONTINUOUS_UPDATES`, `FENCE`, `FENCE_*` flags; client
+      `Fence` (248) and `EnableContinuousUpdates` (150); server `Fence`
+      (248) and `EndOfContinuousUpdates` (150); in `ENCODINGS` before -308
+      (-258 stays last)
+- [ ] client: answers fence requests; enables CU once the server has shown
+      both (EndOfContinuousUpdates + a Fence); no update requests while on;
+      re-enables for a new size; `pause()` now returns bytes (disable),
+      `resume()` re-enables + full request (stormrfb-vt follows)
+- [ ] server: announces both after SetEncodings; pushes updates for the CU
+      area without requests, each followed by a fence request; in-flight
+      bytes bounded by a window (`set_window`, default 1 MiB); answers
+      client fences; disable → EndOfContinuousUpdates
+- [ ] tests: codec round trips/bounds; sessions; test/ medium suite with a
+      50 ms injected RTT: updates/s request/response vs continuous
+- [ ] sc-build; docs; CHANGELOG; close #7
 
 ### Active — #6 ExtendedDesktopSize (-308) + SetDesktopSize (2026-10-07)
 
