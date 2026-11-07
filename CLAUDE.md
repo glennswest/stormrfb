@@ -92,10 +92,16 @@ stormpanel (`drm.rs`, `vt.rs`, its Terminus font).
 - [x] tests against `stormrfb-server`: known frame, keystroke, click,
       release/acquire with no stale frame
 - [x] code + docs pushed (5c0d00b, 742f764); written with no toolchain here
-- [ ] sc-build: fmt, clippy -D warnings, workspace tests, musl release build
-      (first run of 5c0d00b queued 2026-11-07, ~10 builds ahead)
-- [ ] golden: needs a registry entry (`component add stormrfb-vt`, master
-      runs it via `stormcentral note`); licence #24 may block the SBOM gate
+- [x] sc-build at b862630 (2026-11-07): fmt --check, clippy -D warnings,
+      workspace tests, musl release build + tests, zero warnings;
+      `stormrfb-vt --version` runs (static-pie, ~594 KB). 998190b's run
+      gave the rustfmt diff (28 hunks) and the musl `cdylib` warning, fixed
+      by `default-members` without stormrfb-wasm
+- Not checkable on a build VM: DRM, VT and evdev (need a real console)
+- [ ] golden: registry entry sent to the master (`stormcentral note`,
+      2026-11-07); item waiting on it (`wait-owner --action`). Then
+      `component build stormrfb-vt --no-wait`. #24 does not block it: the
+      SBOM step skips workspace members
 - [ ] stormcos wiring on tty5/tty6 is stormcos#228's; absolute pointer on
       qemu is stormvm#76
 
