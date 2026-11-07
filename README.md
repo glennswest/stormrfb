@@ -406,6 +406,8 @@ docs/VALIDATION.md.
 
 - [docs/presentation.md](docs/presentation.md): a 12-slide Marp deck on
   purpose and functionality (`npx @marp-team/marp-cli docs/presentation.md`).
+  `sc-build deploy/check-slides.sh` renders it on a build VM and fails if a
+  slide overflows the 16:9 frame (stormcentral's checker, #77; #11).
 - [test/README.md](test/README.md): the stormcos test container, its
   suites and output.
 - [docs/DESIGN.md](docs/DESIGN.md): scope, architecture, decisions and

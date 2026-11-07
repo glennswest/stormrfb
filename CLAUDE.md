@@ -212,15 +212,15 @@ as the measurement.
   drain for the bootstrap golden; it is still draining (stormcentral#541).
   Proposed --after stormcentral#541; rerun that one command when it ends
 
-### Active — #11 slide overflow (2026-10-06; resumed 2026-11-07)
+### Done — #11 slide overflow (2026-10-06; closed 2026-11-07)
 
 Part 2 (stale clippy/rustfmt line) was done in 13581c5.
-- [ ] replace the homegrown `tools/check-slides.sh` + `tools/slides.browser.cjs`
-      (never completed a run) with stormcentral's standard checker (#77),
-      copied as `deploy/check-slides.sh` + `deploy/slide-fit.mjs`
-- [ ] `sc-build deploy/check-slides.sh`; split or trim any slide that
-      overflows; rerun until all fit
-- [ ] CHANGELOG, README; close #11
+- [x] stormcentral's checker (#77) as `deploy/check-slides.sh` +
+      `deploy/slide-fit.mjs`; the homegrown `tools/` pair removed
+- [x] at c38c732: 10 of 12 slides overflowed (+31 to +354 px)
+- [x] deck rewritten (compact style, split, refreshed for v0.3.0); at
+      ee4e7b7 all 12 fit 1280x720, Liberation fonts present
+- [x] CHANGELOG, README; #11 closed
 
 ### Done — #1 QEMU Extended Key Event (-258), v0.2.0 (2026-10-06)
 

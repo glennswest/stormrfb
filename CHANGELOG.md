@@ -4,6 +4,8 @@
 <!-- New unreleased changes go here -->
 
 ### 2026-11-07
+- **test:** stormcentral's slide checker (`deploy/check-slides.sh`, `deploy/slide-fit.mjs`, from stormcentral 3d35080, #77) replaces `tools/check-slides.sh` and `tools/slides.browser.cjs`, which never completed a run (#11)
+- **docs:** the deck fits its 16:9 frame: 10 of 12 slides overflowed (by 31–354 px at c38c732); now stormcentral's compact style, the busiest slides split and trimmed, and refreshed for v0.3.0 (#6, #7, #25 and the runner #10; 68 tests; build VMs, not dev). `sc-build deploy/check-slides.sh` at ee4e7b7: all 12 fit (#11)
 - **test:** `test/requires.toml`, declaring that no suite needs anything, per the test standard (#10)
 - **docs:** the test image runs through stormcentral's runner: `short` and `medium` passed on pvetest1 and pvetest2 at 5e64282, `/results` kept (README, test/README, deck, VALIDATION, CLAUDE.md) (#10)
 
