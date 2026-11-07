@@ -89,8 +89,7 @@ link that is not a loopback.
 
 As built: `Cursor` (-239), `DesktopSize` (-223), `LastRect` (-224),
 `ExtendedDesktopSize` (-308, with `SetDesktopSize`, #6) and QEMU Extended
-Key Event (-258, #1). `ContinuousUpdates` and `Fence` are **(design — not
-built)**.
+Key Event (-258, #1), `ContinuousUpdates` (-313) and `Fence` (-312, #7).
 
 - **`DesktopSize` (-223) and `ExtendedDesktopSize` (-308)** — a console
   whose framebuffer does not follow the window is unpleasant to use, and
@@ -252,7 +251,12 @@ client in one pod (docs/VALIDATION.md, 2026-09-27).
 viewer milestone. Only the development harness is committed scope.
 
 **Phase 4 — the latency work.** `ContinuousUpdates` + `Fence`, and whatever
-the phase-1 measurements said was actually slow. *State:* design — not built.
+the phase-1 measurements said was actually slow. *State:* ContinuousUpdates
+and Fence built (#7, owner's decision 2026-10-07: build it now). Both ends:
+the client turns them on when the server offers both, the server pushes
+updates for the enabled area with a fence after each and holds them while
+the unanswered bytes reach a window. Measured in test/'s `latency-50ms`
+(docs/VALIDATION.md).
 
 ## Decisions
 

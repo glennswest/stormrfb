@@ -50,16 +50,16 @@ Every crate has `publish = false`. Rust edition 2024, `rust-version = 1.85`.
 | Version | **RFB 3.8 only** (`RFB 003.008\n`). Anything else fails with `Invalid("requires RFB 3.8")` |
 | Security | `None` (1) and VNC Authentication (2, DES challenge/response). No TLS/VeNCrypt/SASL. The transport is secured a layer up |
 | Pixel formats | True colour only, 16 or 32 bpp, both byte orders, validated channel masks. Colour-map formats are rejected |
-| Client → server | `SetPixelFormat`, `SetEncodings`, `FramebufferUpdateRequest`, `KeyEvent`, `PointerEvent`, `ClientCutText`, `SetDesktopSize` (251), and QEMU's Extended Key Event (message 255, submessage 0) (encode and decode) |
-| Server → client | `FramebufferUpdate`, `SetColourMapEntries` (decoded; the client ignores it), `Bell`, `ServerCutText` |
+| Client → server | `SetPixelFormat`, `SetEncodings`, `FramebufferUpdateRequest`, `KeyEvent`, `PointerEvent`, `ClientCutText`, `EnableContinuousUpdates` (150), `ClientFence` (248), `SetDesktopSize` (251), and QEMU's Extended Key Event (message 255, submessage 0) (encode and decode) |
+| Server → client | `FramebufferUpdate`, `SetColourMapEntries` (decoded; the client ignores it), `Bell`, `ServerCutText`, `EndOfContinuousUpdates` (150), `ServerFence` (248) |
 | Decoded encodings | Raw (0), CopyRect (1), Hextile (5), ZRLE (16, one persistent zlib stream per connection) |
-| Pseudo-encodings | Cursor (-239), DesktopSize (-223), LastRect (-224), ExtendedDesktopSize (-308, with its screen layout), QEMU Extended Key Event (-258) |
+| Pseudo-encodings | Cursor (-239), DesktopSize (-223), LastRect (-224), ContinuousUpdates (-313), Fence (-312, payload up to 64 bytes), ExtendedDesktopSize (-308, with its screen layout), QEMU Extended Key Event (-258) |
 | Encoder (`ServerEncoder::update`) | Raw, Hextile and ZRLE, choosing each tile's subencoding by size (#5). Hextile: background only (nothing when the previous tile's background carries), one foreground in subrectangles, coloured subrectangles, or raw. ZRLE: the smallest of solid, packed palette, plain RLE, palette RLE and raw per 64×64 tile, deflated with `Compression::fast()`. Colours are compared as wire pixels. Also encodes CopyRect, Cursor, DesktopSize, ExtendedDesktopSize and the -258 acknowledgement |
-| Not implemented | RFB 3.3/3.7, TRLE (15) as an advertised encoding, Tight/JPEG/H.264, ContinuousUpdates (-313)/Fence (-312), XCursor (-240), colour-map pixel formats |
+| Not implemented | RFB 3.3/3.7, TRLE (15) as an advertised encoding, Tight/JPEG/H.264, XCursor (-240), colour-map pixel formats |
 
 `ENCODINGS`, the list the client advertises, in preference order, is
 `ZRLE, Hextile, CopyRect, Raw, Cursor, DesktopSize, LastRect,
-ExtendedDesktopSize, QemuExtendedKey`.
+ContinuousUpdates, Fence, ExtendedDesktopSize, QemuExtendedKey`.
 
 ### Limits: the crates' only configuration
 
@@ -111,11 +111,26 @@ that decoder, client or session: reconnect with a fresh one.
   `RESIZE_OK` (0), `RESIZE_PROHIBITED` (1), `RESIZE_OUT_OF_RESOURCES` (2)
   or `RESIZE_INVALID_LAYOUT` (3). A layout rectangle with an unchanged size
   does not resize or clear the framebuffer. The `Event` enum is unchanged.
-- **Pausing** (for a viewer that is not on screen). `pause()` stops the
-  request that follows each update, so after the one in flight the server
-  sends nothing. `resume()` returns a non-incremental request for the whole
-  framebuffer, so nothing drawn meanwhile is missed. `updates()` counts
-  completed FramebufferUpdates. The `Event` enum is unchanged.
+- **Continuous updates** (-313 with Fence, -312, #7). A server that
+  supports Fence sends a fence request after `SetEncodings`, and one that
+  supports ContinuousUpdates sends EndOfContinuousUpdates. Once it has seen
+  both, the client sends `EnableContinuousUpdates` for the whole
+  framebuffer (as noVNC does), and then sends no update requests: the
+  server pushes them. After a resize it enables them again for the new
+  size. It answers every fence request with the same payload and the flags
+  it knows (`FENCE_FLAGS`), without the request bit. A server that ends
+  continuous updates on its own is not asked again; the client goes back
+  to requests. `continuous()` says whether they are on. `send()` refuses
+  `Fence` and `EnableContinuousUpdates`: the client owns both.
+- **Pausing** (for a viewer that is not on screen). `pause()` returns the
+  bytes to send: with continuous updates on, the message that stops them
+  (the server answers with EndOfContinuousUpdates); otherwise nothing, and
+  the request that follows each update is no longer sent. Either way the
+  server sends nothing more after the update in flight. `resume()` returns
+  a non-incremental request for the whole framebuffer, so nothing drawn
+  meanwhile is missed, and turns continuous updates back on where the
+  server takes them. `updates()` counts completed FramebufferUpdates. The
+  `Event` enum is unchanged.
 - `Framebuffer` is opaque RGBA (alpha forced to 255; the wire's spare byte is
   not alpha). CopyRect handles overlap in every direction.
 - `Renderer` is a trait for native consumers. Nothing in this repo
@@ -158,6 +173,24 @@ that decoder, client or session: reconnect with a fresh one.
   no event. A newer request replaces an unanswered one, and an update
   carries one answer, the latest. `SetDesktopSize` from a client that did
   not advertise -308 ends the session (`Unsupported(-308)`).
+- **Continuous updates and fences** (#7). A client that advertises -312
+  is sent a fence request (empty payload) after its `SetEncodings`, and its
+  own fence requests are answered with their payload and the known flags.
+  A client that advertises -313 is sent EndOfContinuousUpdates. After it
+  enables them, `update()` sends updates for the enabled area whenever there
+  is damage (and the -258 acknowledgement, layouts and resizes) without a
+  request. Incremental requests are ignored meanwhile; non-incremental ones
+  are answered. With -312, each such update is followed by a fence request
+  (`BlockBefore`, a 4-byte sequence number); `update()` holds further updates
+  while the bytes whose fences are unanswered reach the window
+  (`set_window(bytes)`, `DEFAULT_WINDOW` 1 MiB; one update always goes when
+  none is in flight). `in_flight()` is those bytes, `continuous()` whether
+  they are on. Without -312 nothing limits them but how often the
+  application calls `update()`. A resize carries them over to the whole new
+  framebuffer. Disabling is answered with EndOfContinuousUpdates.
+  `EnableContinuousUpdates` or `Fence` from a client that did not advertise
+  them ends the session (`Unsupported`), as does an area outside the
+  framebuffer.
 - The server never sends CopyRect, Cursor, Bell, cut text or colour maps
   from a session. `ServerEvent::encode_control` and `ServerEncoder` can build
   them if the application writes the bytes itself.
