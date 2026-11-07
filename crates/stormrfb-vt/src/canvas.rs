@@ -57,7 +57,7 @@ impl Canvas {
         for (i, line) in lines.iter().enumerate() {
             let fit = (self.width / cw).max(1);
             let line: String = line.chars().take(fit).collect();
-            let x = (self.width.saturating_sub(line.chars().count() * cw)) / 2;
+            let x = self.width.saturating_sub(line.chars().count() * cw) / 2;
             let colour = if i == 0 { 0xe8_eaed } else { 0x9a_a0a6 };
             self.text(x, top + i * ch, &line, colour, scale);
         }
