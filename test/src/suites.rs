@@ -797,7 +797,7 @@ fn moving_window_1080p() -> Outcome {
 
 /// #7's measurement: a screen that changes 100 times a second, over a link
 /// with a 50 ms round trip (a delaying proxy, 25 ms each way). Request and
-/// response (a codec client that does not advertise -313/-312) can show at
+/// response (a codec client that does not advertise -313/-312/-258) can show at
 /// most one update per round trip; continuous updates (`Client`, which
 /// turns them on against this server) are not bound to it. Both must end
 /// exact; continuous must be at least twice the request/response rate.
@@ -809,7 +809,9 @@ fn latency_50ms() -> Outcome {
     let request_mode: Vec<i32> = ENCODINGS
         .iter()
         .copied()
-        .filter(|&e| e != CONTINUOUS_UPDATES && e != FENCE)
+        // The codec client applies every rectangle to its framebuffer, so
+        // it takes no pseudo-rectangle that is not a picture (-258's ack).
+        .filter(|&e| ![CONTINUOUS_UPDATES, FENCE, QEMU_EXTENDED_KEY].contains(&e))
         .collect();
     let mut rates = vec![];
     for (mode, continuous) in [("request/response", false), ("continuous", true)] {
