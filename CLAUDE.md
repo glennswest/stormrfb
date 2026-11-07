@@ -130,6 +130,14 @@ Baseline: 131,640 bytes/frame, moving-window-1080p, raw ZRLE tiles.
       stormcentral#63 blocks the runner (#56 closed 2026-09-28); dated
       done-items above keep #56 as history. #10's title and body updated
 
+### Active — #10 the test container through stormcentral's runner (2026-11-07)
+
+stormcentral#63 (apiserver /readyz) and #57 (/results, requires:) closed
+2026-10-17, so the runner should work.
+- [ ] check test/ against the current test standard (requires.toml, Job yaml)
+- [ ] `stormcentral test run stormrfb short`, then medium; read the log
+- [ ] docs (README, test/README, VALIDATION, CLAUDE.md shipping line); close #10
+
 ### Active — #7 ContinuousUpdates (-313) + Fence (-312) (2026-11-07)
 
 Owner's decision on #7 (2026-10-07): build it now, codec + client +
