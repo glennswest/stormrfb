@@ -168,7 +168,7 @@ as the measurement.
 - [x] docs; CHANGELOG; close #7
 - [x] v0.3.0 (breaking: #6, #25's pause, #7), tagged 2026-11-07
 
-### Active — #6 ExtendedDesktopSize (-308) + SetDesktopSize (2026-10-07)
+### Done — #6 ExtendedDesktopSize (-308) + SetDesktopSize (2026-10-07, closed 2026-11-07)
 
 - [x] codec: `EXTENDED_DESKTOP_SIZE` in `ENCODINGS` (before -258, which
       stays last); `Screen`, `valid_layout`; `Rectangle::ExtendedDesktopSize`;
@@ -189,7 +189,7 @@ as the measurement.
   fmt; test crate clippy/fmt; test/ short + medium) retrying until the
   build-VM drain ends (stormcentral#541, due ~18:11Z)
 - [x] v0.3.0 tagged at 7491d00 (2026-11-07)
-- [ ] close #6 (verified at f6f316d; left for the owner, 2026-11-07)
+- [x] #6 closed 2026-11-07 (verified at f6f316d, f4e50ae, 7491d00)
 - Not checkable here: the JS test (no wasm target, stormcentral#64); a real
   qemu answering SetDesktopSize (needs virtio-gpu/-vga std with ui-info)
 
