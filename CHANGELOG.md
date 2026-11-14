@@ -3,6 +3,9 @@
 ## [Unreleased]
 <!-- New unreleased changes go here -->
 
+### 2026-11-14
+- **docs:** re-checked README, DESIGN, VALIDATION and CLAUDE.md against the code since 2026-11-07: only `docs/research/2026-11-07.md` changed (no code), so nothing drifted; CLAUDE.md status dated. Open items stay as issues (#16, #22, #24 licence, #25 registry entry)
+
 ### 2026-11-07
 - **docs:** refreshed from the code since 2026-10-16: README, DESIGN and VALIDATION already match v0.3.0 (checked Limits, `ENCODINGS`, `DEFAULT_WINDOW`, stormrfb-vt); CLAUDE.md's status and Phase 4 checklist brought up to date (ContinuousUpdates done; #22 left open)
 - **test:** stormcentral's slide checker (`deploy/check-slides.sh`, `deploy/slide-fit.mjs`, from stormcentral 3d35080, #77) replaces `tools/check-slides.sh` and `tools/slides.browser.cjs`, which never completed a run (#11)

@@ -57,6 +57,10 @@ and pvetest2 at 5e64282 (2026-11-07, #10); the nightly plan runs `medium`.
 
 ## Work plan
 
+### Status (2026-11-14)
+
+No code change since 2026-11-07 (only a research note); docs re-checked, no drift.
+
 ### Status (2026-11-07)
 
 v0.3.0: #5, #6, #7, #10, #11, #12 done; #25 (stormrfb-vt) built, waiting on its
