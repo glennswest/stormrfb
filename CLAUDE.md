@@ -57,9 +57,9 @@ and pvetest2 at 5e64282 (2026-11-07, #10); the nightly plan runs `medium`.
 
 ## Work plan
 
-### Done — #34 no "not implemented" markers (2026-11-18)
+### Done — #34 no stub markers (2026-11-18)
 
-Two doc lines, no code stubs (`unimplemented!`/`todo!` none).
+Two doc lines; no stub macros or stub answers in the code.
 - [x] docs/VALIDATION.md: limits as decided scope (DESIGN "Deliberately
       out"); ContinuousUpdates/Fence was stale (done in v0.3.0)
 - [x] web/README.md + README.md: dead keys / IME described as what
