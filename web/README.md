@@ -47,5 +47,8 @@ and returns `false` when the server takes no resize requests, or not yet.
 The canvas is sized to the guest framebuffer; scaling is the page's CSS. Text clipboard is
 Latin-1 as specified by RFB.
 Passwords are encoded as UTF-8 bytes and truncated to eight bytes by VNC Auth.
-DOM dead keys and composition/IME are not implemented. The package is private;
+Keys go out as the keysym of the DOM `key` value. A dead key itself (`key` =
+`Dead`) has no keysym and keydowns during IME composition (`isComposing`) are
+skipped, so neither sends anything (`client.js`); sending scancodes so the
+guest's own layout composes is #16. The package is private;
 no npm publication or stormconsole replacement is performed by this build.

@@ -57,6 +57,15 @@ and pvetest2 at 5e64282 (2026-11-07, #10); the nightly plan runs `medium`.
 
 ## Work plan
 
+### Done — #34 no "not implemented" markers (2026-11-18)
+
+Two doc lines, no code stubs (`unimplemented!`/`todo!` none).
+- [x] docs/VALIDATION.md: limits as decided scope (DESIGN "Deliberately
+      out"); ContinuousUpdates/Fence was stale (done in v0.3.0)
+- [x] web/README.md + README.md: dead keys / IME described as what
+      `web/client.js` does (sends nothing), gap is #16
+- [x] the issue's grep is empty, tests included; sc-build; close #34
+
 ### Status (2026-11-14)
 
 No code change since 2026-11-07 (only a research note); docs re-checked, no drift.

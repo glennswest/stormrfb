@@ -55,7 +55,7 @@ Every crate has `publish = false`. Rust edition 2024, `rust-version = 1.85`.
 | Decoded encodings | Raw (0), CopyRect (1), Hextile (5), ZRLE (16, one persistent zlib stream per connection) |
 | Pseudo-encodings | Cursor (-239), DesktopSize (-223), LastRect (-224), ContinuousUpdates (-313), Fence (-312, payload up to 64 bytes), ExtendedDesktopSize (-308, with its screen layout), QEMU Extended Key Event (-258) |
 | Encoder (`ServerEncoder::update`) | Raw, Hextile and ZRLE, choosing each tile's subencoding by size (#5). Hextile: background only (nothing when the previous tile's background carries), one foreground in subrectangles, coloured subrectangles, or raw. ZRLE: the smallest of solid, packed palette, plain RLE, palette RLE and raw per 64×64 tile, deflated with `Compression::fast()`. Colours are compared as wire pixels. Also encodes CopyRect, Cursor, DesktopSize, ExtendedDesktopSize and the -258 acknowledgement |
-| Not implemented | RFB 3.3/3.7, TRLE (15) as an advertised encoding, Tight/JPEG/H.264, XCursor (-240), colour-map pixel formats |
+| Outside the subset (refused or never advertised; docs/DESIGN.md "Deliberately out") | RFB 3.3/3.7, TRLE (15) as an advertised encoding, Tight/JPEG/H.264, XCursor (-240), colour-map pixel formats |
 
 `ENCODINGS`, the list the client advertises, in preference order, is
 `ZRLE, Hextile, CopyRect, Raw, Cursor, DesktopSize, LastRect,
@@ -212,7 +212,8 @@ It draws with canvas 2D `putImageData` on damaged rectangles from an
 `ImageData` over WASM memory, and rebuilds the view after memory growth.
 It renders the cursor locally as a CSS cursor. Input is keyboard (release
 on blur), pointer with capture, and wheel. Clipboard text is Latin-1 only.
-It has no dead keys, no IME and no scaling of its own, and does not resize
+A dead key itself and keys during IME composition send nothing (scancodes
+are #16). It has no scaling of its own and does not resize
 by itself: the page decides when to call `resize`. The canvas is the guest's size and CSS scales it. See
 [web/README.md](web/README.md).
 

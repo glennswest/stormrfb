@@ -3,6 +3,9 @@
 ## [Unreleased]
 <!-- New unreleased changes go here -->
 
+### 2026-11-18
+- **docs:** no "not implemented" markers (#34): VALIDATION's limits line now names what is outside the subset by decision (RFB 3.3/3.7, colour-map formats, Tight/JPEG, a shipped native viewer) and drops ContinuousUpdates/Fence, which v0.3.0 implemented (#7); web/README and README say exactly what the browser does with a dead key and during IME composition (sends nothing, `web/client.js`), with scancodes as #16; README's subset table row is "Outside the subset". No code stubs existed
+
 ### 2026-11-14
 - **docs:** re-checked README, DESIGN, VALIDATION and CLAUDE.md against the code since 2026-11-07: only `docs/research/2026-11-07.md` changed (no code), so nothing drifted; CLAUDE.md status dated. Open items stay as issues (#16, #22, #24 licence, #25 registry entry)
 

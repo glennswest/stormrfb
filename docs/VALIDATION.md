@@ -346,10 +346,11 @@ install, an older release).
 - stormvm owns the virtio-gpu/vhost-user integration. The real 1080p moving
   guest server fps/bytes-per-second measurement is pending that integration.
   The in-process number above is the library's part of it.
-- RFB 3.3/3.7, indexed-colour pixel formats,
-  ContinuousUpdates/Fence, Tight/JPEG, IME/composition and a shipped native
-  viewer are not implemented. The native harness intentionally has mouse
-  input only. The browser supports ordinary DOM keys and Latin-1 clipboard,
+- Outside the protocol subset by decision (docs/DESIGN.md, "Deliberately
+  out" and decision 3): RFB 3.3/3.7 (refused with `requires RFB 3.8`),
+  colour-map pixel formats (rejected), Tight/JPEG (never advertised) and a
+  shipped native viewer. ContinuousUpdates/Fence landed in v0.3.0 (#7,
+  above). The native harness intentionally has mouse input only. The browser supports ordinary DOM keys and Latin-1 clipboard,
   and it sends keysyms, not scancodes. The crates support QEMU Extended Key
   Event (#1), but the browser does not use it yet (#16).
 - Default bounds are 16,777,216 pixels, 128 MiB per protocol input/output
