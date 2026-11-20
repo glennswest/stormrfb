@@ -119,8 +119,9 @@ stormpanel (`drm.rs`, `vt.rs`, its Terminus font).
 - [x] golden: registry entry added by the master 2026-11-20 (binaries
       kind); first image build 2d1bf1343a0e requested with it (queued).
       #24 does not block it: the SBOM step skips workspace members
-- [ ] seen on a node: needs stormcos#228's wiring; item proposed --after
-      stormcos#228 (2026-11-20)
+- [x] shipped 2026-11-20 with proof `console:stormrfb-vt: v… on tty(9|10),
+      WxH@` (--after stormcos#228 was refused: circular). Closes once an
+      install carrying stormcos#228's wiring shows it; reopens if not
 - [ ] stormcos wiring on tty9/tty10 is stormcos#228's; absolute pointer on
       qemu is stormvm#76
 
