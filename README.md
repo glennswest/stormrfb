@@ -258,17 +258,31 @@ stormrfb-vt --connect HOST:PORT      # or on TCP
   and the client is paused. **Acquire**: master and the devices are taken
   back, and a whole frame is asked for. Nothing is shown until every
   pixel of it has arrived, so a switch back never shows the frame from
-  before it (the status screen shows for that moment instead).
+  before it (the status screen shows for that moment instead): the modeset
+  on acquire fills the buffer it scans out with the status screen first.
+- **A failed modeset or present** (DRM master not back yet on acquire) is
+  retried, 100 ms doubling to 2 s, until a picture is shown, whether or not
+  the guest draws again.
 - **VM down**: a status screen names the VM and why, and it reconnects
   with backoff (1 s doubling to 30 s, back to 1 s after a session that
-  reached the handshake).
-- **Tests** (`crates/stormrfb-vt/tests/viewer.rs`): the `Viewer` (all of it
+  reached the handshake). A connect runs on a thread of its own with a 10 s
+  deadline (5 s per TCP address), so a host that drops SYNs or a stalled
+  resolver never holds up a VT switch or SIGTERM.
+- **Exit**: on its own VT the viewer puts back the CRTC it found (fbcon's
+  buffer) while still DRM master, then drops master; switched away, it
+  leaves the CRTC to the VT that has it. A failed restore is logged.
+- **Tests** (`crates/stormrfb-vt/tests/`): `viewer.rs`, the `Viewer` (all of it
   but the kernel interfaces) against `stormrfb-server` in process: a known
   frame on a 2x screen pixel for pixel, keystrokes (scancode + keysym,
   shifted, E0) and a click (absolute, relative, wheel) at the guest
   position, release/acquire with no stale frame and no stuck keys, the
-  switch keys in both modes, and a resize to the screen's size. The DRM,
-  VT and evdev parts need a real console and are not run by the build.
+  switch keys in both modes, and a resize to the screen's size.
+  `screen.rs`, when and how pictures reach a fake `Screen`: frame pacing,
+  retries after a failed modeset or present, the status screen on
+  reacquire, the shutdown order. `dial.rs`, a stalled connect given up at
+  its deadline with the caller polling throughout, and TCP to a listener.
+  The DRM, VT and evdev ioctls need a real console and are not run by the
+  build.
 
 ### Native harness (development only)
 

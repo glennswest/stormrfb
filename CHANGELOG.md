@@ -4,6 +4,7 @@
 <!-- New unreleased changes go here -->
 
 ### 2026-11-20
+- **fix:** stormrfb-vt review findings (#36): a failed modeset or present keeps the picture waiting and is retried (100 ms doubling to 2 s) instead of being dropped until the guest draws again (1831ded79907); connecting runs on a thread with a 10 s deadline (5 s per TCP address) while the console keeps answering VT switches and SIGTERM (d250b8cc030c, 71f1468e10d4); the reacquire modeset scans out a buffer already filled with the status screen, never the guest frame from before the release (c32a95b2eeb1); exit restores the saved CRTC while still DRM master, only when the VT is on screen, logs a failure, then drops master (cdca2b0ca8e3). New `screen` (Presenter, shutdown, `Screen` trait) and `dial` modules, tested in `tests/screen.rs` and `tests/dial.rs`
 - **docs:** `stormrfb-vt` runs on tty9/tty10, not tty5/tty6 (stormpump#159's VT map; README, DESIGN, deck, doc comments); its registry entry exists and its first image build is requested (#25)
 
 ### 2026-11-18

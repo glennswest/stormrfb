@@ -13,6 +13,7 @@ use std::os::fd::AsRawFd;
 use std::time::Duration;
 
 use crate::canvas::Canvas;
+use crate::screen::{Overlay, Screen};
 
 const fn iowr(nr: u32, size: usize) -> libc::c_ulong {
     ((3u32 << 30) | ((size as u32) << 16) | ((b'd' as u32) << 8) | nr) as libc::c_ulong
@@ -359,9 +360,13 @@ impl Display {
         ioctl(self.file.as_raw_fd(), DROP_MASTER, &mut z)
     }
 
-    /// Shows the front buffer (after acquiring the VT, or at start).
-    pub fn modeset(&mut self) -> io::Result<()> {
+    /// Fills the front buffer with `c` (and `overlay`) and scans it out
+    /// (after acquiring the VT, or at start). Filled first, so the CRTC
+    /// never shows what the buffer held before: on reacquire that is the
+    /// guest frame from before the release (stormrfb#36).
+    pub fn modeset(&mut self, c: &Canvas, overlay: &dyn Fn(&mut [u32], usize)) -> io::Result<()> {
         self.pending = false;
+        self.copy_into(self.front, c, overlay);
         let fb = self.bufs[self.front].fb;
         self.set_crtc(fb)
     }
@@ -467,13 +472,12 @@ impl Display {
         self.flips
     }
 
-    /// Puts back whatever the CRTC showed before (fbcon's buffer).
-    pub fn restore(&self) {
-        if let Some(s) = &self.saved
-            && s.fb_id != 0
-            && s.mode_valid != 0
-        {
-            let _ = self.set_crtc_raw(s);
+    /// Puts back whatever the CRTC showed before (fbcon's buffer). Needs
+    /// DRM master. Nothing saved (or nothing was shown) is not an error.
+    pub fn restore(&self) -> io::Result<()> {
+        match &self.saved {
+            Some(s) if s.fb_id != 0 && s.mode_valid != 0 => self.set_crtc_raw(s),
+            _ => Ok(()),
         }
     }
 
@@ -491,6 +495,24 @@ impl Display {
             ..Default::default()
         };
         ioctl(self.file.as_raw_fd(), SETCRTC, &mut c)
+    }
+}
+
+impl Screen for Display {
+    fn set_master(&mut self) -> io::Result<()> {
+        Display::set_master(self)
+    }
+    fn drop_master(&mut self) -> io::Result<()> {
+        Display::drop_master(self)
+    }
+    fn modeset(&mut self, c: &Canvas, overlay: Overlay) -> io::Result<()> {
+        Display::modeset(self, c, overlay)
+    }
+    fn present(&mut self, c: &Canvas, overlay: Overlay) -> io::Result<()> {
+        Display::present(self, c, overlay)
+    }
+    fn restore(&mut self) -> io::Result<()> {
+        Display::restore(self)
     }
 }
 

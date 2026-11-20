@@ -17,7 +17,9 @@ use std::time::{Duration, Instant};
 
 use stormrfb::Limits;
 use stormrfb_vt::canvas::Canvas;
+use stormrfb_vt::dial::{self, Dial};
 use stormrfb_vt::evdev::Devices;
+use stormrfb_vt::screen::{self, Presenter};
 use stormrfb_vt::{Action, Options, SwitchKeys, Viewer, drm, vt};
 
 const USAGE: &str = "usage: stormrfb-vt (--vm NS/NAME | --socket PATH | --connect HOST:PORT)
@@ -126,11 +128,16 @@ fn main() {
     }
 }
 
-trait Stream: Read + Write + AsRawFd {}
+trait Stream: Read + Write + AsRawFd + Send {}
 impl Stream for UnixStream {}
 impl Stream for TcpStream {}
 
-fn connect(t: &Target) -> io::Result<Box<dyn Stream>> {
+/// A whole connect (resolve and every address) gives up after this.
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+/// Each TCP address gets this.
+const CONNECT_EACH: Duration = Duration::from_secs(5);
+
+fn open_stream(t: &Target) -> io::Result<Box<dyn Stream>> {
     let s: Box<dyn Stream> = match t {
         Target::Unix(p) => {
             let s = UnixStream::connect(p)?;
@@ -138,13 +145,40 @@ fn connect(t: &Target) -> io::Result<Box<dyn Stream>> {
             Box::new(s)
         }
         Target::Tcp(a) => {
-            let s = TcpStream::connect(a)?;
+            let s = dial::tcp(a, CONNECT_EACH)?;
             s.set_nodelay(true)?;
             s.set_write_timeout(Some(Duration::from_secs(5)))?;
             Box::new(s)
         }
     };
     Ok(s)
+}
+
+/// Connects off the loop (stormrfb#36): while the connect runs, VT
+/// switches are answered and SIGTERM is heard.
+fn connect(con: &mut Console, t: &Target) -> io::Result<Box<dyn Stream>> {
+    let target = match t {
+        Target::Unix(p) => Target::Unix(p.clone()),
+        Target::Tcp(a) => Target::Tcp(a.clone()),
+    };
+    let d = Dial::start(CONNECT_TIMEOUT, move || open_stream(&target))?;
+    loop {
+        if vt::QUIT.load(Ordering::SeqCst) {
+            return Err(io::Error::new(io::ErrorKind::Interrupted, "stopping"));
+        }
+        let now = Instant::now();
+        if let Some(r) = d.poll(now) {
+            return r;
+        }
+        let mut sink = vec![];
+        con.switches(None, &mut sink);
+        con.present(None, false);
+        let t = d
+            .left(now)
+            .min(Duration::from_millis(50))
+            .min(con.wait_hint());
+        con.wait(&[], t);
+    }
 }
 
 /// The console: the VT, the screen and the input devices, and whether the
@@ -154,12 +188,10 @@ struct Console {
     disp: drm::Display,
     input: Devices,
     shown: bool,
-    need_modeset: bool,
+    show: Presenter,
     wait_mask: libc::sigset_t,
     status: Canvas,
     last_err: String,
-    last_present: Instant,
-    pending: bool,
 }
 
 /// What a session's end says on the screen.
@@ -184,8 +216,7 @@ impl Console {
         if vt::ACQUIRE.swap(false, Ordering::SeqCst) {
             self.term.ack_acquire();
             self.shown = true;
-            self.need_modeset = true;
-            self.pending = true;
+            self.show.acquired();
             self.input.scan();
             if let Some(v) = viewer {
                 out.extend(v.acquire());
@@ -194,43 +225,48 @@ impl Console {
     }
 
     /// Puts the picture (or, without one, the status screen) on the screen
-    /// if it changed, at most once a frame.
+    /// if it changed, at most once a frame. A failure keeps it waiting and
+    /// is retried after a growing delay (screen::Presenter, stormrfb#36).
     fn present(&mut self, viewer: Option<&Viewer>, force: bool) {
-        if !self.shown || !(self.pending || force) {
+        if !self.shown {
             return;
         }
-        if !force && self.last_present.elapsed() < Duration::from_millis(16) {
-            return;
-        }
-        if self.need_modeset {
-            let _ = self.disp.set_master();
-            match self.disp.modeset() {
-                Ok(()) => self.need_modeset = false,
-                Err(e) => note(&mut self.last_err, &format!("modeset: {e}")),
-            }
-        }
+        let now = Instant::now();
         let r = match viewer.and_then(|v| v.frame().map(|f| (v, f))) {
-            Some((v, frame)) => self.disp.present(frame, &|buf: &mut [u32], stride: usize| {
-                v.draw_cursor(buf, stride)
-            }),
-            None => self
-                .disp
-                .present(&self.status, &|_: &mut [u32], _: usize| {}),
+            Some((v, frame)) => self.show.show(
+                &mut self.disp,
+                now,
+                force,
+                frame,
+                &|buf: &mut [u32], stride: usize| v.draw_cursor(buf, stride),
+            ),
+            None => self.show.show(
+                &mut self.disp,
+                now,
+                force,
+                &self.status,
+                &|_: &mut [u32], _: usize| {},
+            ),
         };
         match r {
-            Ok(()) => self.last_err.clear(),
-            Err(e) => {
-                note(&mut self.last_err, &format!("present: {e}"));
-                self.need_modeset = true;
-            }
+            Ok(true) => self.last_err.clear(),
+            Ok(false) => {}
+            Err(e) => note(&mut self.last_err, &e),
         }
-        self.pending = false;
-        self.last_present = Instant::now();
+    }
+
+    /// How long the loop may wait before presenting is due again.
+    fn wait_hint(&self) -> Duration {
+        if self.shown {
+            self.show.wait(Instant::now())
+        } else {
+            screen::IDLE
+        }
     }
 
     fn set_status(&mut self, lines: &[&str]) {
         self.status.status(lines);
-        self.pending = true;
+        self.show.changed();
     }
 
     /// Waits for `fds` (or the timeout, or a signal). Returns which are
@@ -279,12 +315,10 @@ fn run(args: &Args) -> Result<(), String> {
         term,
         disp,
         input: Devices::default(),
-        need_modeset: true,
+        show: Presenter::new(),
         wait_mask,
         status: Canvas::new(w, h),
         last_err: String::new(),
-        last_present: Instant::now(),
-        pending: true,
     };
     if con.shown {
         con.input.scan();
@@ -295,7 +329,7 @@ fn run(args: &Args) -> Result<(), String> {
     while !vt::QUIT.load(Ordering::SeqCst) {
         con.set_status(&[&args.label, "connecting"]);
         con.present(None, true);
-        let ended = match connect(&args.target) {
+        let ended = match connect(&mut con, &args.target) {
             Ok(s) => session(&mut con, args, s),
             Err(e) => Ended {
                 why: format!("not running ({e})"),
@@ -327,13 +361,18 @@ fn run(args: &Args) -> Result<(), String> {
             let mut sink = vec![];
             con.switches(None, &mut sink);
             con.present(None, false);
-            con.wait(&[], left.min(Duration::from_millis(500)));
+            con.wait(&[], left.min(con.wait_hint()));
         }
         backoff = (backoff * 2).min(Duration::from_secs(30));
     }
     log("stopping");
-    let _ = con.disp.drop_master();
-    con.disp.restore();
+    // A release that came with the stop is handled first, so `shown` says
+    // whether this VT still owns the display.
+    let mut sink = vec![];
+    con.switches(None, &mut sink);
+    if let Some(e) = screen::shutdown(&mut con.disp, con.shown) {
+        log(&format!("restoring the console: {e}"));
+    }
     con.term.restore();
     Ok(())
 }
@@ -370,7 +409,7 @@ fn session(con: &mut Console, args: &Args, mut s: Box<dyn Stream>) -> Ended {
             };
         }
         if v.take_changed() {
-            con.pending = true;
+            con.show.changed();
         }
         con.present(Some(&v), false);
         if con.shown && last_scan.elapsed() > Duration::from_secs(2) {
@@ -381,12 +420,7 @@ fn session(con: &mut Console, args: &Args, mut s: Box<dyn Stream>) -> Ended {
         if con.shown {
             fds.extend(con.input.fds());
         }
-        let timeout = if con.pending {
-            Duration::from_millis(16)
-        } else {
-            Duration::from_millis(500)
-        };
-        let ready = con.wait(&fds, timeout);
+        let ready = con.wait(&fds, con.wait_hint());
         if ready[0] {
             let n = match s.read(&mut buf) {
                 Ok(0) => {

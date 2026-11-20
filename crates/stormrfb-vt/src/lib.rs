@@ -5,14 +5,18 @@
 //! [`viewer`] is the part with no I/O: RFB bytes and input events in, bytes
 //! to send, VT switches and a fitted XRGB picture out. It is what the tests
 //! drive against `stormrfb-server`. [`drm`], [`vt`] and [`evdev`] are the
-//! kernel interfaces the binary puts around it.
+//! kernel interfaces the binary puts around it; [`screen`] decides when
+//! and how a picture goes on the screen and [`dial`] connects without
+//! stalling the console.
 
 pub mod canvas;
+pub mod dial;
 pub mod drm;
 pub mod evdev;
 pub mod fit;
 pub mod font;
 pub mod keys;
+pub mod screen;
 pub mod viewer;
 pub mod vt;
 
