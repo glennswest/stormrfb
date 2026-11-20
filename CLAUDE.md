@@ -94,7 +94,7 @@ overflow, #12 test-crate lint.
 
 ### Active — #25 stormrfb-vt: a VM's display full-screen on a VT (2026-11-07)
 
-stormcos#228: desktops on tty5/tty6. A new binary crate `crates/stormrfb-vt`
+stormcos#228: desktops on tty9/tty10 (were tty5/tty6; stormpump#159). A new binary crate `crates/stormrfb-vt`
 (an RFB client that draws to KMS), with its DRM/VT code adapted from
 stormpanel (`drm.rs`, `vt.rs`, its Terminus font).
 - [x] client: `pause()` / `resume()` (no update requests while the VT is
@@ -116,11 +116,12 @@ stormpanel (`drm.rs`, `vt.rs`, its Terminus font).
       gave the rustfmt diff (28 hunks) and the musl `cdylib` warning, fixed
       by `default-members` without stormrfb-wasm
 - Not checkable on a build VM: DRM, VT and evdev (need a real console)
-- [ ] golden: registry entry sent to the master (`stormcentral note`,
-      2026-11-07); item waiting on it (`wait-owner --action`). Then
-      `component build stormrfb-vt --no-wait`. #24 does not block it: the
-      SBOM step skips workspace members
-- [ ] stormcos wiring on tty5/tty6 is stormcos#228's; absolute pointer on
+- [x] golden: registry entry added by the master 2026-11-20 (binaries
+      kind); first image build 2d1bf1343a0e requested with it (queued).
+      #24 does not block it: the SBOM step skips workspace members
+- [ ] seen on a node: needs stormcos#228's wiring; item proposed --after
+      stormcos#228 (2026-11-20)
+- [ ] stormcos wiring on tty9/tty10 is stormcos#228's; absolute pointer on
       qemu is stormvm#76
 
 ### Done — #5 real Hextile/ZRLE tile subencodings (2026-10-07)

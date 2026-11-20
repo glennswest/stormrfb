@@ -42,7 +42,7 @@ and a browser library such as noVNC cannot. That is why this repo exists.
 RGBA framebuffer out. stormconsole offers it as an opt-in alternative to
 noVNC, which stays the default.
 
-**On the node's console.** stormcos#228 puts VM desktops on tty5/tty6:
+**On the node's console.** stormcos#228 puts VM desktops on tty9/tty10:
 `stormrfb-vt` is the client that draws them with KMS (#25).
 
 The licence (noVNC is MPL-2.0 in an MIT stack) is **not** a reason on its
@@ -57,7 +57,7 @@ own. If the server were not needed, keeping noVNC would be the answer.
 | stormconsole | vendors the built browser package (`web/src/lib/vendor/stormrfb/`, `VERSION` `29305ab`), behind `?rfb=storm` |
 | stormrdp | `stormrfb`, `-client`, `-server` as git deps at rev `29305ab`; `stormrdp-host-rfb` bridges VNC to RDP |
 | stormvm | nothing yet: stormvm#1 is where `stormrfb-server` is meant to go |
-| stormcos | `stormrfb-vt` on tty5/tty6 (stormcos#228); its image waits on a registry entry |
+| stormcos | `stormrfb-vt` on tty9/tty10 (stormcos#228); its own binaries image |
 
 stormcentral's graph (`stormcentral check`) has stormrfb in group `ui`,
 depending on nothing. The missing stormrdp → stormrfb edge is

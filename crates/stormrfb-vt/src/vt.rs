@@ -1,4 +1,4 @@
-//! The viewer's virtual terminal. stormpump starts it with `tty tty5`: the
+//! The viewer's virtual terminal. stormpump starts it with `tty tty9`: the
 //! VT is fds 0–2 and the controlling terminal. The viewer puts the VT in
 //! graphics mode (the kernel stops drawing text on it), in VT_PROCESS mode
 //! (switching away sends SIGUSR1: release, drop DRM master and input, then
@@ -219,7 +219,7 @@ fn vt_number(fd: i32) -> io::Result<u16> {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             format!(
-                "fd {fd} is not a virtual terminal (device {maj}:{min}); run on a VT, e.g. stormpump's `tty tty5`"
+                "fd {fd} is not a virtual terminal (device {maj}:{min}); run on a VT, e.g. stormpump's `tty tty9`"
             ),
         ));
     }

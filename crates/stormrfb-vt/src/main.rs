@@ -6,7 +6,7 @@
 //!
 //! Options: --run-dir DIR (default /run/stormvm), --password-file FILE,
 //! --device /dev/dri/cardN, --switch alt|ctrl-alt, --no-resize.
-//! stormpump runs it as a `domain task` with `tty tty5`.
+//! stormpump runs it as a `domain task` with `tty tty9`.
 
 use std::io::{self, Read, Write};
 use std::net::TcpStream;

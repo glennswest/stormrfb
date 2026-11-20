@@ -337,7 +337,7 @@ was never built.) If the harness turns out to be pleasant, promoting
 it later is easy; if it does not, nothing was promised.
 
 **Not the same thing: `stormrfb-vt`** (#25, 2026-11-07). The owner's
-stormcos#228 puts desktops on a node's own console (tty5, tty6). That is
+stormcos#228 puts desktops on a node's own console (tty9, tty10; stormpump#159's VT map). That is
 not a GUI application on an operator's machine: one screen, one fixed
 mode, no window system, no clipboard or IME, keys straight from evdev.
 None of the long tail above applies, and a browser tab cannot be on a

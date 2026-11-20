@@ -3,6 +3,9 @@
 ## [Unreleased]
 <!-- New unreleased changes go here -->
 
+### 2026-11-20
+- **docs:** `stormrfb-vt` runs on tty9/tty10, not tty5/tty6 (stormpump#159's VT map; README, DESIGN, deck, doc comments); its registry entry exists and its first image build is requested (#25)
+
 ### 2026-11-18
 - **docs:** no stub markers in the docs (#34): VALIDATION's limits line now names what is outside the subset by decision (RFB 3.3/3.7, colour-map formats, Tight/JPEG, a shipped native viewer) and drops ContinuousUpdates/Fence, which v0.3.0 implemented (#7); web/README and README say exactly what the browser does with a dead key and during IME composition (sends nothing, `web/client.js`), with scancodes as #16; README's subset table row is "Outside the subset". No code stubs existed
 

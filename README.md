@@ -220,7 +220,7 @@ by itself: the page decides when to call `resize`. The canvas is the guest's siz
 ### Console viewer (`stormrfb-vt`)
 
 A VM's display full-screen on the VT it runs on (#25, stormcos#228: a
-desktop on tty5, another on tty6). It is an RFB client, as the browser's
+desktop on tty9, another on tty10; the VT map is stormpump#159's). It is an RFB client, as the browser's
 is, that draws to KMS instead of a canvas.
 
 ```
@@ -231,7 +231,7 @@ stormrfb-vt --connect HOST:PORT      # or on TCP
   [--switch alt|ctrl-alt] [--no-resize]
 ```
 
-- **Runs on a VT**: fd 0 is the VT (stormpump's `tty tty5`). It sets the VT
+- **Runs on a VT**: fd 0 is the VT (stormpump's `tty tty9`). It sets the VT
   to graphics mode, `VT_PROCESS` switching and keyboard mode `K_OFF`, and
   puts them back on exit. Logs go to `/dev/kmsg`.
 - **Display**: the first `/dev/dri/card*` with a connected screen (or
@@ -369,9 +369,9 @@ its pin.
 
 **`stormrfb-vt`** is meant to ship as a binaries golden of its own
 (`/pallets/stormrfb-vt`, static musl), supervised by stormpump as a
-`domain task` with `tty tty5`/`tty tty6` like stormpanel on tty8. Its
-registry entry is the owner's to add (stormcentral#185), and stormcos#228
-wires it on the VTs.
+`domain task` with `tty tty9`/`tty tty10` like stormpanel on tty8. Its
+registry entry was added 2026-11-20 (binaries kind) and its first image
+build requested; stormcos#228 wires it on the VTs.
 
 **The test image** is built by stormcentral's test runner from `test/`
 (`test/build.sh`, then `podman build -f test/Containerfile .`) as
