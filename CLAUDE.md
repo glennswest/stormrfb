@@ -59,16 +59,19 @@ and pvetest2 at 5e64282 (2026-11-07, #10); the nightly plan runs `medium`.
 
 ### Active — #36 review findings in stormrfb-vt's main.rs (2026-11-20)
 
-- [ ] 1831ded79907: a failed modeset/present keeps `pending` and retries
+- [x] 1831ded79907: a failed modeset/present keeps `pending` and retries
       with a bounded backoff (`screen::Presenter`)
-- [ ] d250b8cc030c / 71f1468e10d4: connecting (resolve + connect, TCP and
+- [x] d250b8cc030c / 71f1468e10d4: connecting (resolve + connect, TCP and
       Unix) runs off the loop with a deadline (`dial`); the console keeps
       servicing VT switches and SIGTERM while it waits
-- [ ] c32a95b2eeb1: modeset fills the front buffer with what is shown
+- [x] c32a95b2eeb1: modeset fills the front buffer with what is shown
       (status screen on reacquire) before SETCRTC
-- [ ] cdca2b0ca8e3: shutdown restores the CRTC while master, only when the
+- [x] cdca2b0ca8e3: shutdown restores the CRTC while master, only when the
       VT is on screen, logs a failure, then drops master
-- [ ] tests (fake `Screen`, dial deadline); sc-build; close #36
+- [x] tests (fake `Screen`, dial deadline), docs, CHANGELOG: 49f1715
+- [ ] sc-build of 49f1715 (fmt, clippy -D warnings, workspace tests): the
+      first run waited for a slot and was stopped by the session's host
+      (low memory) before building; rerun it, then close #36
 
 ### Done — #34 no stub markers (2026-11-18)
 
