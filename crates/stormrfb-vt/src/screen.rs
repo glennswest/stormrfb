@@ -125,7 +125,11 @@ impl Presenter {
         if self.retry_at.is_some_and(|r| now < r) {
             return Ok(false);
         }
-        if !force && self.last.is_some_and(|l| now.saturating_duration_since(l) < FRAME) {
+        if !force
+            && self
+                .last
+                .is_some_and(|l| now.saturating_duration_since(l) < FRAME)
+        {
             return Ok(false);
         }
         self.last = Some(now);

@@ -80,7 +80,10 @@ fn the_first_picture_is_a_modeset_of_that_picture() {
     assert_eq!(s.scanned, Some(7));
     assert!(!p.pending());
     // Nothing changed: nothing to do, and the loop may idle.
-    assert_eq!(p.show(&mut s, t + FRAME, false, &canvas(7), &none), Ok(false));
+    assert_eq!(
+        p.show(&mut s, t + FRAME, false, &canvas(7), &none),
+        Ok(false)
+    );
     assert_eq!(p.wait(t + FRAME), screen::IDLE);
 }
 
@@ -91,9 +94,15 @@ fn a_change_is_presented_at_most_once_a_frame() {
     let t = Instant::now();
     p.show(&mut s, t, false, &canvas(1), &none).unwrap();
     p.changed();
-    assert_eq!(p.show(&mut s, t + FRAME / 2, false, &canvas(2), &none), Ok(false));
+    assert_eq!(
+        p.show(&mut s, t + FRAME / 2, false, &canvas(2), &none),
+        Ok(false)
+    );
     assert_eq!(p.wait(t + FRAME / 2), FRAME - FRAME / 2);
-    assert_eq!(p.show(&mut s, t + FRAME, false, &canvas(2), &none), Ok(true));
+    assert_eq!(
+        p.show(&mut s, t + FRAME, false, &canvas(2), &none),
+        Ok(true)
+    );
     assert_eq!(s.calls.last(), Some(&"present"));
     assert_eq!(s.scanned, Some(2));
 }
@@ -113,7 +122,10 @@ fn a_failed_modeset_keeps_the_picture_waiting_and_is_retried() {
     assert!(p.pending() && p.needs_modeset());
     // Not before the retry delay: no busy loop on a failing display.
     assert_eq!(p.wait(t), RETRY_MIN);
-    assert_eq!(p.show(&mut s, t + RETRY_MIN / 2, false, &frame, &none), Ok(false));
+    assert_eq!(
+        p.show(&mut s, t + RETRY_MIN / 2, false, &frame, &none),
+        Ok(false)
+    );
     // The delay doubles: 100 ms, then 200 ms, then 400 ms.
     let t1 = t + RETRY_MIN;
     assert!(p.show(&mut s, t1, false, &frame, &none).is_err());
@@ -197,7 +209,10 @@ fn acquire_cancels_a_running_retry_delay() {
     let t = Instant::now();
     assert!(p.show(&mut s, t, false, &canvas(1), &none).is_err());
     p.acquired();
-    assert_eq!(p.show(&mut s, t + FRAME, false, &canvas(1), &none), Ok(true));
+    assert_eq!(
+        p.show(&mut s, t + FRAME, false, &canvas(1), &none),
+        Ok(true)
+    );
 }
 
 #[test]
