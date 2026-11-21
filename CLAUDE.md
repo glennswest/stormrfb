@@ -57,6 +57,14 @@ and pvetest2 at 5e64282 (2026-11-07, #10); the nightly plan runs `medium`.
 
 ## Work plan
 
+### Active — #37 review finding in stormrfb-vt's evdev.rs (2026-11-20)
+
+- [x] 54766362e21b: a device that goes away lets go of what it held
+      (`evdev::Held`, releases + Sync from `Devices::read`)
+- [x] tests (`evdev.rs` unit, `tests/viewer.rs` end to end), README, CHANGELOG
+- [ ] sc-build (fmt, clippy -D warnings, workspace tests), then close #37
+      (also covers #36's pending build)
+
 ### Active — #36 review findings in stormrfb-vt's main.rs (2026-11-20)
 
 - [x] 1831ded79907: a failed modeset/present keeps `pending` and retries

@@ -7,6 +7,7 @@ use std::collections::VecDeque;
 
 use stormrfb::*;
 use stormrfb_server::{Event as S, Security, Server};
+use stormrfb_vt::evdev::Held;
 use stormrfb_vt::fit::xrgb;
 use stormrfb_vt::{Action, Input, Options, SwitchKeys, Viewer};
 
@@ -308,6 +309,46 @@ fn a_click_round_trips_at_the_guest_position() {
             }
         ]
     );
+}
+
+#[test]
+fn an_unplugged_device_lets_go_of_its_keys_and_buttons() {
+    let (mut v, mut s) = connected(no_resize());
+    // The device's events go to the viewer and to its Held, as
+    // evdev::Devices does it: shift and the left button go down.
+    let mut held = Held::default();
+    let down = [
+        Input::AbsX(0.75),
+        Input::AbsY(0.5),
+        Input::Sync,
+        Input::Key { code: 42, value: 1 },
+        Input::Key {
+            code: 0x110,
+            value: 1,
+        },
+        Input::Sync,
+    ];
+    down.iter().for_each(|e| held.note(e));
+    let heard = input(&mut v, &mut s, &down);
+    let p = |buttons| S::Pointer {
+        buttons,
+        x: 6,
+        y: 3,
+    };
+    let shift = |down| S::QemuKey {
+        down,
+        keysym: 0xffe1,
+        keycode: 0x2a,
+    };
+    assert_eq!(heard.server, vec![p(0), shift(true), p(1)]);
+    // The device is gone (a read error): its releases reach the guest.
+    let heard = input(&mut v, &mut s, &held.releases());
+    assert_eq!(heard.server, vec![shift(false), p(0)]);
+    // Nothing is left held: a VT release lets go of nothing more.
+    let released = v.release();
+    let heard = pump(&mut v, &mut s, released);
+    let input_events = |e: &&S| matches!(e, S::QemuKey { .. } | S::Pointer { .. });
+    assert_eq!(heard.server.iter().filter(input_events).count(), 0);
 }
 
 #[test]

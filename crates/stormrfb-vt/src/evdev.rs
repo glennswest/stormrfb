@@ -61,6 +61,46 @@ struct Device {
     abs: [Option<(i32, i32)>; 2],
     /// Bytes of a partly read event.
     partial: Vec<u8>,
+    /// Its keys and buttons that are down now.
+    held: Held,
+}
+
+/// The keys and buttons (both `EV_KEY`) one device holds down, so that a
+/// device that disappears can let go of them (stormrfb#37): an unplugged
+/// keyboard, mouse or KVM never sends their releases, and the guest would
+/// otherwise keep a modifier or a button held for the rest of the session.
+#[derive(Debug, Default)]
+pub struct Held {
+    down: Vec<u16>,
+}
+
+impl Held {
+    /// Follows one event the device sent.
+    pub fn note(&mut self, ev: &Input) {
+        if let Input::Key { code, value } = *ev {
+            let known = self.down.contains(&code);
+            match value {
+                0 => self.down.retain(|&c| c != code),
+                1 if !known => self.down.push(code),
+                _ => {}
+            }
+        }
+    }
+
+    /// The events that let go of everything held, newest first, then a
+    /// `Sync` so a button's release reaches the guest; nothing if nothing
+    /// is held.
+    pub fn releases(&mut self) -> Vec<Input> {
+        let mut out: Vec<Input> = std::mem::take(&mut self.down)
+            .into_iter()
+            .rev()
+            .map(|code| Input::Key { code, value: 0 })
+            .collect();
+        if !out.is_empty() {
+            out.push(Input::Sync);
+        }
+        out
+    }
 }
 
 #[derive(Default)]
@@ -115,6 +155,7 @@ impl Device {
             path: path.to_path_buf(),
             abs,
             partial: vec![],
+            held: Held::default(),
         })
     }
 
@@ -135,7 +176,10 @@ impl Device {
                 let kind = u16::from_ne_bytes([ev[16], ev[17]]);
                 let code = u16::from_ne_bytes([ev[18], ev[19]]);
                 let value = i32::from_ne_bytes([ev[20], ev[21], ev[22], ev[23]]);
-                out.extend(decode(kind, code, value, &self.abs));
+                if let Some(i) = decode(kind, code, value, &self.abs) {
+                    self.held.note(&i);
+                    out.push(i);
+                }
             }
             self.partial.drain(..whole);
         }
@@ -203,11 +247,13 @@ impl Devices {
         self.list.iter().map(|d| d.file.as_raw_fd()).collect()
     }
 
-    /// Reads device `i`; one that is gone is closed and dropped.
+    /// Reads device `i`; one that is gone is closed and dropped, and the
+    /// releases of the keys and buttons it held are added to `out`.
     pub fn read(&mut self, i: usize, out: &mut Vec<Input>) {
         if let Some(d) = self.list.get_mut(i)
             && d.read(out).is_err()
         {
+            out.extend(d.held.releases());
             self.list.remove(i);
         }
     }
@@ -241,5 +287,31 @@ mod tests {
         // An absolute axis with no range, and events the viewer ignores.
         assert_eq!(decode(3, 0, 5, &[None, None]), None);
         assert_eq!(decode(4, 4, 1, &abs), None);
+    }
+
+    #[test]
+    fn a_gone_device_lets_go_of_what_it_held() {
+        let key = |code, value| Input::Key { code, value };
+        let mut h = Held::default();
+        // Shift and the left button down, 'a' pressed and released,
+        // shift's autorepeat, a move: shift and the button stay held.
+        for ev in [
+            key(42, 1),
+            key(0x110, 1),
+            key(30, 1),
+            key(30, 0),
+            key(42, 2),
+            key(42, 1),
+            Input::RelX(3),
+            Input::Sync,
+        ] {
+            h.note(&ev);
+        }
+        assert_eq!(h.releases(), vec![key(0x110, 0), key(42, 0), Input::Sync]);
+        // Released once: nothing more to let go of.
+        assert_eq!(h.releases(), vec![]);
+        h.note(&key(30, 1));
+        h.note(&key(30, 0));
+        assert_eq!(h.releases(), vec![]);
     }
 }

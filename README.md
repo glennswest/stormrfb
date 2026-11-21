@@ -260,6 +260,10 @@ stormrfb-vt --connect HOST:PORT      # or on TCP
   pixel of it has arrived, so a switch back never shows the frame from
   before it (the status screen shows for that moment instead): the modeset
   on acquire fills the buffer it scans out with the status screen first.
+- **Unplug**: a device that goes away (a read error: an unplugged
+  keyboard or mouse, the KVM's virtual one) lets go of the keys and
+  buttons it held, as release events, so the guest is never left with a
+  modifier or a button down (#37).
 - **A failed modeset or present** (DRM master not back yet on acquire) is
   retried, 100 ms doubling to 2 s, until a picture is shown, whether or not
   the guest draws again.
@@ -275,7 +279,8 @@ stormrfb-vt --connect HOST:PORT      # or on TCP
   but the kernel interfaces) against `stormrfb-server` in process: a known
   frame on a 2x screen pixel for pixel, keystrokes (scancode + keysym,
   shifted, E0) and a click (absolute, relative, wheel) at the guest
-  position, release/acquire with no stale frame and no stuck keys, the
+  position, release/acquire with no stale frame and no stuck keys, an unplugged
+  device's keys and button let go of, the
   switch keys in both modes, and a resize to the screen's size.
   `screen.rs`, when and how pictures reach a fake `Screen`: frame pacing,
   retries after a failed modeset or present, the status screen on
