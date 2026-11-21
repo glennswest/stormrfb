@@ -3,6 +3,9 @@
 ## [Unreleased]
 <!-- New unreleased changes go here -->
 
+### 2026-11-21
+- **style:** rustfmt `stormrfb-vt`'s `screen.rs` and `tests/screen.rs` (#36's code; the build of 8e3c0e5 failed `fmt --check`, #38). sc-build at 9efee2b: fmt, clippy -D warnings, 86 workspace tests pass (#36, #37)
+
 ### 2026-11-20
 - **fix:** stormrfb-vt: an input device that goes away (a read error) lets go of the keys and buttons it held: each device tracks what it has down (`evdev::Held`) and `Devices::read` sends their releases and a sync before dropping it, so an unplugged keyboard, mouse or KVM no longer leaves a modifier or button held in the guest (#37, finding 54766362e21b). Tested in `evdev.rs` and `tests/viewer.rs`
 - **fix:** stormrfb-vt review findings (#36): a failed modeset or present keeps the picture waiting and is retried (100 ms doubling to 2 s) instead of being dropped until the guest draws again (1831ded79907); connecting runs on a thread with a 10 s deadline (5 s per TCP address) while the console keeps answering VT switches and SIGTERM (d250b8cc030c, 71f1468e10d4); the reacquire modeset scans out a buffer already filled with the status screen, never the guest frame from before the release (c32a95b2eeb1); exit restores the saved CRTC while still DRM master, only when the VT is on screen, logs a failure, then drops master (cdca2b0ca8e3). New `screen` (Presenter, shutdown, `Screen` trait) and `dial` modules, tested in `tests/screen.rs` and `tests/dial.rs`

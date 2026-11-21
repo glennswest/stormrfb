@@ -57,15 +57,17 @@ and pvetest2 at 5e64282 (2026-11-07, #10); the nightly plan runs `medium`.
 
 ## Work plan
 
-### Active — #37 review finding in stormrfb-vt's evdev.rs (2026-11-20)
+### Done — #37 review finding in stormrfb-vt's evdev.rs (2026-11-21)
 
 - [x] 54766362e21b: a device that goes away lets go of what it held
       (`evdev::Held`, releases + Sync from `Devices::read`)
 - [x] tests (`evdev.rs` unit, `tests/viewer.rs` end to end), README, CHANGELOG
-- [ ] sc-build (fmt, clippy -D warnings, workspace tests), then close #37
-      (also covers #36's pending build)
+- [x] sc-build at 9efee2b (job 378f8af327, 2026-11-21): fmt --check, clippy
+      -D warnings (zero warnings), 86 workspace tests, both new ones pass.
+      8e3c0e5's run failed fmt on #36's screen.rs (filed as #38; fixed in
+      9efee2b, which closed #38); closed #37 and #36
 
-### Active — #36 review findings in stormrfb-vt's main.rs (2026-11-20)
+### Done — #36 review findings in stormrfb-vt's main.rs (2026-11-20, closed 2026-11-21)
 
 - [x] 1831ded79907: a failed modeset/present keeps `pending` and retries
       with a bounded backoff (`screen::Presenter`)
@@ -77,9 +79,8 @@ and pvetest2 at 5e64282 (2026-11-07, #10); the nightly plan runs `medium`.
 - [x] cdca2b0ca8e3: shutdown restores the CRTC while master, only when the
       VT is on screen, logs a failure, then drops master
 - [x] tests (fake `Screen`, dial deadline), docs, CHANGELOG: 49f1715
-- [ ] sc-build of 49f1715 (fmt, clippy -D warnings, workspace tests): the
-      first run waited for a slot and was stopped by the session's host
-      (low memory) before building; rerun it, then close #36
+- [x] sc-build: rustfmt wanted 5 hunks in screen.rs + tests/screen.rs
+      (fixed 9efee2b); at 9efee2b fmt, clippy -D warnings and 86 tests pass
 
 ### Done — #34 no stub markers (2026-11-18)
 
